@@ -1,0 +1,5 @@
+db_partysys
+bot_partysys
+*.pyc
+logs/*
+.venv

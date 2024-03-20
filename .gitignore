@@ -1,0 +1,7 @@
+*.env
+.venv
+bot_partysys
+db_partysys
+logs/*
+**/__pycache__/
+**/.env
