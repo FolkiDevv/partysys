@@ -25,9 +25,6 @@ jobs:
           # secrets are GitHub actions that can be added
           # from settings of the repo.
           password: ${{ secrets.CR_PAT }}
-      - name: lowercase github.repository
-        run: |
-          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}" >> ${GITHUB_ENV}
       # Build the docker image and push it.
       - name: Build image
         uses: docker/build-push-action@v2
@@ -36,7 +33,7 @@ jobs:
           push: true
           # Remove the `gchr.io/` if you're pushing to
           # Docker Hub
-          tags: ghcr.io/${{ env.IMAGE_NAME }}:latest
+          tags: ghcr.io/${{ github.repository_owner }}/partysys:latest
   # Name of the job is deploy
   deploy:
     needs: build-push
