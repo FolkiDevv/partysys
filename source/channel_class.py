@@ -820,7 +820,7 @@ class TempVoice:
         await self.channel.set_permissions(
             target=self.owner,
             overwrite=discord.PermissionOverwrite(
-                deafen_members=True, move_members=True
+                move_members=True,  # deafen_members=True,
             ),
         )  # Get temp voice new owner permissions
         self.bot.cur.execute(

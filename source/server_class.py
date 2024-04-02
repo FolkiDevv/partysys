@@ -108,12 +108,18 @@ class ServerTempVoices:
                     (temp_voice.id, member.id, member.id),
                 )  # Save temp channel info into database
 
+                self._temp_channels[temp_voice.id] = (
+                    source.channel_class.TempVoice(
+                        self.bot, temp_voice, member, self.server_id
+                    )
+                )
+
                 overwrites: dict[
                     discord.Member | discord.Role,
                     discord.PermissionOverwrite,
                 ] = {
                     member: discord.PermissionOverwrite(
-                        deafen_members=True, move_members=True
+                        move_members=True,  # deafen_members=True
                     )
                 }
 
@@ -139,19 +145,7 @@ class ServerTempVoices:
                                     send_messages_in_threads=False,
                                 )
                             )
-                for key, overwrite in overwrites.items():
-                    try:
-                        await temp_voice.set_permissions(
-                            target=key, overwrite=overwrite
-                        )
-                    except discord.NotFound:
-                        continue
 
-                self._temp_channels[temp_voice.id] = (
-                    source.channel_class.TempVoice(
-                        self.bot, temp_voice, member, self.server_id
-                    )
-                )
                 try:
                     await member.move_to(
                         temp_voice, reason="Move to created temp voice"
@@ -167,6 +161,15 @@ class ServerTempVoices:
                         return None
                     else:
                         raise e
+
+                for key, overwrite in overwrites.items():
+                    try:
+                        await temp_voice.set_permissions(
+                            target=key, overwrite=overwrite
+                        )
+                    except discord.NotFound:
+                        continue
+
                 await self._temp_channels[
                     temp_voice.id
                 ].send_interface()  # Send control interface

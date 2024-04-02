@@ -3,3 +3,8 @@ bot_partysys
 *.pyc
 logs/*
 .venv
+*.env
+**/__pycache__/
+**/.env
+.idea
+.vscode

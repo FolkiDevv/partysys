@@ -1,6 +1,6 @@
 services:
   bot:
-    build: ./
+    image: ghcr.io/FolkiDevv/partysys:latest
     command: sh -c "sleep 10s ; python main.py"
     environment:
       - DEBUG=${DEBUG}
@@ -10,9 +10,10 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - SENTRY_DSN=${SENTRY_DSN}
     restart: always
     volumes:
-      - ./bot_partysys:/app/logs
+      - /usr/local/src/partysys:/app/logs
     depends_on:
       - db
 
@@ -28,4 +29,4 @@ services:
       MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
     restart: always
     volumes:
-      - ./db_partysys:/var/lib/mysql
+      - /usr/local/src/partysys:/var/lib/mysql
