@@ -33,7 +33,7 @@ jobs:
           push: true
           # Remove the `gchr.io/` if you're pushing to
           # Docker Hub
-          tags: ghcr.io/${{ github.repository_owner }}/partysys:latest
+          tags: ghcr.io/folkidevv/partysys:latest
   # Name of the job is deploy
   deploy:
     needs: build-push
@@ -53,4 +53,4 @@ jobs:
           key: ${{ secrets.KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
 #          script: docker pull ghcr.io/${{ github.repository }}:latest && docker run ghcr.io/${{ github.repository }}:latest
-          script: cd /usr/local/src/partysys_auto && docker compose down && docker compose up --build -d
+          script: docker login ghcr.io -u ${{ github.repository_owner }} -p ${{ secrets.CR_PAT }} && cd /usr/local/src/partysys_auto && docker compose down && docker compose up --build -d
