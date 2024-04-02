@@ -1,6 +1,6 @@
 services:
   bot:
-    image: ghcr.io/FolkiDevv/partysys:latest
+    image: ghcr.io/folkidevv/partysys:latest
     command: sh -c "sleep 10s ; python main.py"
     environment:
       - DEBUG=${DEBUG}
