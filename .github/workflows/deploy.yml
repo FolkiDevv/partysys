@@ -56,4 +56,4 @@ jobs:
           key: ${{ secrets.KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
 #          script: docker pull ghcr.io/${{ github.repository }}:latest && docker run ghcr.io/${{ github.repository }}:latest
-          script: cd /usr/local/src/partysys_auto && docker compose up --build -d
+          script: cd /usr/local/src/partysys_auto && docker compose down && docker compose up --build -d
