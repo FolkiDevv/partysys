@@ -13,7 +13,7 @@ services:
       - SENTRY_DSN=${SENTRY_DSN}
     restart: always
     volumes:
-      - /usr/local/src/partysys:/app/logs
+      - /usr/local/src/partysys/bot_partysys:/app/logs
     depends_on:
       - db
 
@@ -29,4 +29,4 @@ services:
       MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
     restart: always
     volumes:
-      - /usr/local/src/partysys:/var/lib/mysql
+      - /usr/local/src/partysys/db_partysys:/var/lib/mysql

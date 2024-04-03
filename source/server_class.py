@@ -1,12 +1,111 @@
 from __future__ import annotations
 
 import datetime
+from random import choice
 
 import discord
 import sentry_sdk
 
 import source.bot_class
 import source.channel_class
+
+SQUAD_TITLES = (
+    "Альфа",
+    "Омега",
+    "Феникс",
+    "Грифон",
+    "Дракон",
+    "Волк",
+    "Сокол",
+    "Титан",
+    "Легион",
+    "Центурион",
+    "Шторм",
+    "Север",
+    "Молния",
+    "Сталь",
+    "Кобра",
+    "Пантера",
+    "Лев",
+    "Гладиатор",
+    "Викинг",
+    "Спартанец",
+    "Комета",
+    "Буря",
+    "Арктика",
+    "Торнадо",
+    "Ястреб",
+    "Медведь",
+    "Тигр",
+    "Ягуар",
+    "Скорпион",
+    "Марс",
+    "Железо",
+    "Рубин",
+    "Оникс",
+    "Сапфир",
+    "Жемчуг",
+    "Топаз",
+    "Аметист",
+    "Опал",
+    "Агат",
+    "Бриллиант",
+    "Небеса",
+    "Ореол",
+    "Квазар",
+    "Нимб",
+    "Аврора",
+    "Баррикада",
+    "Каратель",
+    "Навигатор",
+    "Пионер",
+    "Квант",
+    "Эклипс",
+    "Галактика",
+    "Импульс",
+    "Метеор",
+    "Нейтрон",
+    "Протон",
+    "Радар",
+    "Сигма",
+    "Терминатор",
+    "Циклон",
+    "СБЭУ",
+    "Профессионалов",
+    "BEAR",
+    "USEC",
+    "Скайнет",
+    "Терминатор",
+    "Скуфов",
+    "Решал",
+    "LABS",
+    "GIGACHADS",
+)
+
+roman_numbers = {
+    "M": 1000,
+    "CM": 900,
+    "D": 500,
+    "CD": 400,
+    "C": 100,
+    "XC": 90,
+    "L": 50,
+    "XL": 40,
+    "X": 10,
+    "IX": 9,
+    "V": 5,
+    "IV": 4,
+    "I": 1,
+}
+
+
+def to_roman(number):
+    roman = ""
+    for letter, value in roman_numbers.items():
+        while number >= value:
+            roman += letter
+            number -= value
+    return roman
 
 
 class ServerTempVoices:
@@ -97,7 +196,12 @@ class ServerTempVoices:
                 temp_voice = await creator_category.create_voice_channel(
                     name=str(
                         self._creator_channels[creator_channel_id]["def_name"]
-                    ).format(user=member.display_name)[:32],
+                    ).format(
+                        user=member.display_name,
+                        num=len(self._temp_channels) + 1,
+                        squad_title=choice(SQUAD_TITLES),
+                        roman_num=to_roman(len(self._temp_channels) + 1),
+                    )[:32],
                     user_limit=self._creator_channels[creator_channel_id][
                         "def_user_limit"
                     ],
