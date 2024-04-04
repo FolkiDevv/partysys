@@ -1,4 +1,22 @@
-FROM python:3.12-slim-bullseye
+FROM python:3.12-slim-bullseye as builder
+
+# Install poetry
+RUN pip install poetry
+
+# Configure poetry
+RUN poetry config virtualenvs.create true
+RUN poetry config virtualenvs.in-project true
+
+# Copy only requirements to cache them in docker layer
+WORKDIR /app
+COPY poetry.lock pyproject.toml /app/
+
+# Install dependencies
+RUN poetry install --only main --no-interaction --no-ansi --no-root
+
+COPY . /app
+
+FROM python:3.12-slim-bullseye as runtime
 
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
@@ -8,35 +26,12 @@ ENV PYTHONFAULTHANDLER=1 \
   PIP_NO_CACHE_DIR=1 \
   PIP_DISABLE_PIP_VERSION_CHECK=1 \
   PIP_DEFAULT_TIMEOUT=100 \
-  PIP_ROOT_USER_ACTION=ignore \
-  # poetry:
-  POETRY_NO_INTERACTION=1 \
-  POETRY_VIRTUALENVS_CREATE=false \
-  POETRY_CACHE_DIR='/var/cache/pypoetry' \
-  POETRY_HOME='/usr/local'
+  PIP_ROOT_USER_ACTION=ignore
 
-SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
-
-RUN apt-get update && apt-get upgrade -y \
-  && apt-get install --no-install-recommends -y \
-    bash \
-    build-essential \
-    curl \
-    gettext \
-    git \
-    libpq-dev \
-    wait-for-it \
-  # Installing `poetry` package manager:
-  # https://github.com/python-poetry/poetry
-  && curl -sSL 'https://install.python-poetry.org' | python - \
-  && poetry --version \
-  # Cleaning cache:
-  && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-  && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+# Copy installed dependencies from the builder image
+COPY --from=builder /app /app
 
 WORKDIR /app
+ENV PATH="/app/.venv/bin:$PATH"
 
-COPY ./poetry.lock ./pyproject.toml /app/
-RUN poetry install --only main --no-interaction --no-ansi
-
-COPY . /app
+#ENTRYPOINT ["python", "-m", "main"]

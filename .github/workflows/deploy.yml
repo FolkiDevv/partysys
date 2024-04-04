@@ -53,4 +53,4 @@ jobs:
           key: ${{ secrets.KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
 #          script: docker pull ghcr.io/${{ github.repository }}:latest && docker run ghcr.io/${{ github.repository }}:latest
-          script: docker login ghcr.io -u ${{ github.repository_owner }} -p ${{ secrets.CR_PAT }} && cd /usr/local/src/partysys_auto && docker compose down && docker compose up --build -d
+          script: docker login ghcr.io -u ${{ github.repository_owner }} -p ${{ secrets.CR_PAT }} && cd /usr/local/src/partysys_auto && docker compose pull && docker compose down && docker compose up --force-recreate --build -d && docker image prune -f

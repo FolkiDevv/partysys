@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime
-from random import choice
+from random import shuffle
 
 import discord
 import sentry_sdk
@@ -9,7 +9,7 @@ import sentry_sdk
 import source.bot_class
 import source.channel_class
 
-SQUAD_TITLES = (
+SQUAD_TITLES = [
     "Альфа",
     "Омега",
     "Феникс",
@@ -75,12 +75,11 @@ SQUAD_TITLES = (
     "BEAR",
     "USEC",
     "Скайнет",
-    "Терминатор",
     "Скуфов",
     "Решал",
     "LABS",
     "GIGACHADS",
-)
+]
 
 roman_numbers = {
     "M": 1000,
@@ -125,9 +124,22 @@ class ServerTempVoices:
         # self._requests: dict[int, funcs.channel_class.JoinRequest] = dict()
         # list of JoinRequest; key - discord user id
 
+        # Random iterator for temp voice random squad name
+        self._random_names = SQUAD_TITLES.copy()
+        shuffle(self._random_names)
+        self._random_iter: int = 0
+
         self._last_data_update: datetime.datetime = datetime.datetime.now()
 
         self._update(guild.id)
+
+    def _get_random_squad_name(self) -> str:
+        name = self._random_names[self._random_iter]
+        if self._random_iter >= len(self._random_names) - 1:
+            self._random_iter = 0
+        else:
+            self._random_iter += 1
+        return name
 
     def _update(self, guild_id: int) -> None:
         """
@@ -199,7 +211,7 @@ class ServerTempVoices:
                     ).format(
                         user=member.display_name,
                         num=len(self._temp_channels) + 1,
-                        squad_title=choice(SQUAD_TITLES),
+                        squad_title=self._get_random_squad_name(),
                         roman_num=to_roman(len(self._temp_channels) + 1),
                     )[:32],
                     user_limit=self._creator_channels[creator_channel_id][

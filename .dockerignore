@@ -8,3 +8,7 @@ logs/*
 **/.env
 .idea
 .vscode
+.github
+.gitignore
+docker-compose.yml
+Dockerfile
