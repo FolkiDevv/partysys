@@ -97,7 +97,7 @@ COGS = [
     "cogs.voice",
     "cogs.slash_commands",
     "cogs.scheduler",
-    "cogs.healthcheck",
+    # "cogs.healthcheck",
 ]
 
 

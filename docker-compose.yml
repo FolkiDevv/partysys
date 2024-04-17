@@ -1,7 +1,7 @@
 services:
   bot:
     image: ghcr.io/folkidevv/partysys:latest
-#    command: sh -c "sleep 10s ; python main.py"
+    command: sh -c "sleep 10s ; python main.py"
     environment:
       - DEBUG=${DEBUG}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
@@ -24,12 +24,12 @@ services:
         delay: 5s
         max_attempts: 3
         window: 120s
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8081/" ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:8081/" ]
+#      interval: 30s
+#      timeout: 5s
+#      retries: 3
+#      start_period: 30s
     volumes:
       - /usr/local/src/partysys/bot_partysys:/app/logs
     depends_on:
