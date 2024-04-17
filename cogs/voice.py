@@ -51,6 +51,7 @@ class Voice(commands.Cog):
                         sentry_sdk.metrics.incr(
                             "temp_channel_user_join",
                             1,
+                            tags={"server": after_server.guild.id},
                         )
                         after_temp_voice.updated()
                         await after_temp_voice.update_adv()
@@ -74,6 +75,7 @@ class Voice(commands.Cog):
                             sentry_sdk.metrics.incr(
                                 "temp_channel_user_leave",
                                 1,
+                                tags={"server": before_server.guild.id},
                             )
                             before_temp_voice.updated()
                             await before_temp_voice.update_adv()

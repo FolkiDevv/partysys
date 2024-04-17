@@ -1,7 +1,7 @@
 services:
   bot:
     image: ghcr.io/folkidevv/partysys:latest
-    command: sh -c "sleep 10s ; python main.py"
+#    command: sh -c "sleep 10s ; python main.py"
     environment:
       - DEBUG=${DEBUG}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
@@ -11,7 +11,25 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - SENTRY_DSN=${SENTRY_DSN}
-    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     volumes:
       - /usr/local/src/partysys/bot_partysys:/app/logs
     depends_on:
@@ -27,6 +45,18 @@ services:
       MYSQL_USER: 'bot'
       MYSQL_PASSWORD: '${DB_PASSWORD}'
       MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
     volumes:
       - /usr/local/src/partysys/db_partysys:/var/lib/mysql

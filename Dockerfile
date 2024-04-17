@@ -1,22 +1,34 @@
 FROM python:3.12-slim-bullseye as builder
 
-# Install poetry
+# Install Poetry
 RUN pip install poetry
-
-# Configure poetry
-RUN poetry config virtualenvs.create true
-RUN poetry config virtualenvs.in-project true
 
 # Copy only requirements to cache them in docker layer
 WORKDIR /app
 COPY poetry.lock pyproject.toml /app/
 
-# Install dependencies
-RUN poetry install --only main --no-interaction --no-ansi --no-root
+# Configure Poetry and Install dependencies
+RUN poetry config virtualenvs.create true &&  \
+    poetry config virtualenvs.in-project true &&  \
+    poetry install --only main --no-interaction --no-ansi --no-root
 
 COPY . /app
 
+RUN chmod 777 /app/logs
+
 FROM python:3.12-slim-bullseye as runtime
+
+RUN addgroup --gid 1001 --system app && \
+    adduser --no-create-home --shell /bin/false --disabled-password --uid 1001 --system --group app
+
+USER app
+
+#HEALTHCHECK CMD curl --fail http://localhost:8081 || exit 1
+
+# Copy installed dependencies from the builder image
+COPY --from=builder /app /app
+
+WORKDIR /app
 
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
@@ -26,12 +38,7 @@ ENV PYTHONFAULTHANDLER=1 \
   PIP_NO_CACHE_DIR=1 \
   PIP_DISABLE_PIP_VERSION_CHECK=1 \
   PIP_DEFAULT_TIMEOUT=100 \
-  PIP_ROOT_USER_ACTION=ignore
+  PIP_ROOT_USER_ACTION=ignore \
+  PATH="/app/.venv/bin:$PATH"
 
-# Copy installed dependencies from the builder image
-COPY --from=builder /app /app
-
-WORKDIR /app
-ENV PATH="/app/.venv/bin:$PATH"
-
-#ENTRYPOINT ["python", "-m", "main"]
+ENTRYPOINT ["python", "-m", "main"]

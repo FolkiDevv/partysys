@@ -88,6 +88,7 @@ class AdvModal(BaseModal):
             sentry_sdk.metrics.incr(
                 "adv_manual_send",
                 1,
+                tags={"server": self.temp_voice.server_id},
             )
         else:
             await self.temp_voice.send_adv(custom_text=self.text_inp.value)
@@ -98,6 +99,7 @@ class AdvModal(BaseModal):
             sentry_sdk.metrics.incr(
                 "adv_manual_send",
                 1,
+                tags={"server": self.temp_voice.server_id},
             )
 
 

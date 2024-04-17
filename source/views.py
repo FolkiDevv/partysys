@@ -55,6 +55,7 @@ class KickInterface(BaseView):
                 sentry_sdk.metrics.incr(
                     "temp_channel_user_kick",
                     1,
+                    tags={"server": interaction.guild_id},
                 )
             else:
                 raise errors.UserNoTempChannels
@@ -101,6 +102,7 @@ class TransferOwnerInterface(BaseView):
                 sentry_sdk.metrics.incr(
                     "temp_channel_change_owner",
                     1,
+                    tags={"server": interaction.guild_id},
                 )
             else:
                 raise errors.UserNoTempChannels
@@ -138,6 +140,7 @@ class BanInterface(BaseView):
                 sentry_sdk.metrics.incr(
                     "temp_channel_user_ban",
                     1,
+                    tags={"server": interaction.guild_id},
                 )
             else:
                 raise errors.UserNoTempChannels
@@ -196,6 +199,7 @@ class UnbanInterface(BaseView):
                 sentry_sdk.metrics.incr(
                     "temp_channel_user_unban",
                     1,
+                    tags={"server": interaction.guild_id},
                 )
             else:
                 raise errors.UserNoTempChannels
@@ -243,6 +247,7 @@ class TakeAccessInterface(BaseView):
                 sentry_sdk.metrics.incr(
                     "temp_channel_user_restrict_access",
                     1,
+                    tags={"server": interaction.guild_id},
                 )
             else:
                 raise errors.UserNoTempChannels
@@ -286,6 +291,7 @@ class GetAccessInterface(BaseView):
                 sentry_sdk.metrics.incr(
                     "temp_channel_user_get_access",
                     1,
+                    tags={"server": interaction.guild_id},
                 )
             else:
                 raise errors.UserNoTempChannels
@@ -348,6 +354,7 @@ class PrivacyInterface(BaseView):
                 sentry_sdk.metrics.incr(
                     "temp_channel_privacy_changed",
                     1,
+                    tags={"server": interaction.guild_id},
                 )
 
                 if self.select.values[0] != "0":

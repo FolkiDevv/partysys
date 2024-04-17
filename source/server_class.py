@@ -68,7 +68,6 @@ SQUAD_TITLES = [
     "Протон",
     "Радар",
     "Сигма",
-    "Терминатор",
     "Циклон",
     "СБЭУ",
     "Профессионалов",
@@ -179,15 +178,17 @@ class ServerTempVoices:
         """
         if channel_id in self._temp_channels:
             guild_id = self._temp_channels[channel_id].channel.guild.id
-            await self._temp_channels[channel_id].delete()
-            if channel_id in self._temp_channels:
-                del self._temp_channels[channel_id]
+            try:
+                await self._temp_channels[channel_id].delete()
+            finally:
+                if channel_id in self._temp_channels:
+                    del self._temp_channels[channel_id]
 
-            self.bot.cur.execute(
-                "UPDATE temp_channels SET deleted=1 WHERE dis_id=%s",
-                (channel_id,),
-            )  # Mark channel as deleted in DB
-            self._update(guild_id)  # Update server settings from DB
+                self.bot.cur.execute(
+                    "UPDATE temp_channels SET deleted=1 WHERE dis_id=%s",
+                    (channel_id,),
+                )  # Mark channel as deleted in DB
+                # self._update(guild_id)  # Update server settings from DB
 
     async def create_channel(
         self, member: discord.Member, creator_channel_id: int
@@ -198,98 +199,110 @@ class ServerTempVoices:
         :param creator_channel_id:
         :return: obj of created voice channel
         """
-        if creator_channel_id in self._creator_channels:
-            creator_category: discord.CategoryChannel = self.bot.get_channel(
-                self._creator_channels[creator_channel_id]["dis_category_id"]
+        if creator_channel_id not in self._creator_channels:
+            return None
+
+        creator_category: discord.CategoryChannel = self.bot.get_channel(
+            self._creator_channels[creator_channel_id]["dis_category_id"]
+        )
+        if not isinstance(creator_category, discord.CategoryChannel):
+            return None
+
+        temp_voice = await creator_category.create_voice_channel(
+            name=str(
+                self._creator_channels[creator_channel_id]["def_name"]
+            ).format(
+                user=member.display_name,
+                num=len(self._temp_channels) + 1,
+                squad_title=self._get_random_squad_name(),
+                roman_num=to_roman(len(self._temp_channels) + 1),
+            )[:32],
+            user_limit=self._creator_channels[creator_channel_id][
+                "def_user_limit"
+            ],
+        )
+
+        # Save temp channel info into database
+        self.bot.cur.execute(
+            "INSERT INTO temp_channels (dis_id, dis_creator_id, dis_owner_id) VALUES (%s, %s, %s)",
+            (temp_voice.id, member.id, member.id),
+        )
+
+        # Save temp channel info into memory
+        self._temp_channels[temp_voice.id] = source.channel_class.TempVoice(
+            self.bot, temp_voice, member, self.server_id
+        )
+
+        try:
+            # Move owner to created channel
+            await member.move_to(
+                temp_voice, reason="Move to created temp voice"
             )
-            if creator_category and isinstance(
-                creator_category, discord.CategoryChannel
-            ):
-                temp_voice = await creator_category.create_voice_channel(
-                    name=str(
-                        self._creator_channels[creator_channel_id]["def_name"]
-                    ).format(
-                        user=member.display_name,
-                        num=len(self._temp_channels) + 1,
-                        squad_title=self._get_random_squad_name(),
-                        roman_num=to_roman(len(self._temp_channels) + 1),
-                    )[:32],
-                    user_limit=self._creator_channels[creator_channel_id][
-                        "def_user_limit"
-                    ],
-                )
+        except discord.HTTPException as e:
+            if e.code == 40032:
+                # If owner leaved from creator channel delete temp voice
+                await self.del_channel(temp_voice.id)
+            else:
+                raise e
 
-                self.bot.cur.execute(
-                    "INSERT INTO temp_channels (dis_id, dis_creator_id, dis_owner_id) VALUES (%s, %s, %s)",
-                    (temp_voice.id, member.id, member.id),
-                )  # Save temp channel info into database
+        overwrites: dict[
+            discord.Member | discord.Role,
+            discord.PermissionOverwrite,
+        ] = {
+            member: discord.PermissionOverwrite(
+                move_members=True,  # deafen_members=True
+            )
+        }
 
-                self._temp_channels[temp_voice.id] = (
-                    source.channel_class.TempVoice(
-                        self.bot, temp_voice, member, self.server_id
+        # Next get owner ban list and restore them to the new channel
+        query = self.bot.cur.execute(
+            "SELECT dis_banned_id FROM ban_list WHERE server_id=%s AND dis_creator_id=%s AND banned=1",
+            (self.server_id, member.id),
+        )
+        if query:
+            ban_list_raw = self.bot.cur.fetchall()
+            for raw_ban in ban_list_raw:
+                banned_member = self.guild.get_member(raw_ban["dis_banned_id"])
+                if banned_member:
+                    overwrites[banned_member] = discord.PermissionOverwrite(
+                        view_channel=False,
+                        connect=False,
+                        speak=False,
+                        send_messages=False,
+                        add_reactions=False,
+                        send_messages_in_threads=False,
                     )
-                )
 
-                overwrites: dict[
-                    discord.Member | discord.Role,
-                    discord.PermissionOverwrite,
-                ] = {
-                    member: discord.PermissionOverwrite(
-                        move_members=True,  # deafen_members=True
-                    )
-                }
+        try:
+            # Set permissions
+            overwrites.update(temp_voice.overwrites)
+            await temp_voice.edit(
+                overwrites=overwrites, reason="Set permissions"
+            )
 
-                # Next get owner ban list and restore them to the new channel
-                query = self.bot.cur.execute(
-                    "SELECT dis_banned_id FROM ban_list WHERE server_id=%s AND dis_creator_id=%s AND banned=1",
-                    (self.server_id, member.id),
-                )
-                if query:
-                    ban_list_raw = self.bot.cur.fetchall()
-                    for raw_ban in ban_list_raw:
-                        banned_member = self.guild.get_member(
-                            raw_ban["dis_banned_id"]
-                        )
-                        if banned_member:
-                            overwrites[banned_member] = (
-                                discord.PermissionOverwrite(
-                                    view_channel=False,
-                                    connect=False,
-                                    speak=False,
-                                    send_messages=False,
-                                    add_reactions=False,
-                                    send_messages_in_threads=False,
-                                )
-                            )
+            # Send control interface
+            await self._temp_channels[temp_voice.id].send_interface()
+        except discord.NotFound:
+            await self.del_channel(temp_voice.id)
+        except discord.HTTPException:
+            await self.del_channel(temp_voice.id)
 
-                try:
-                    await member.move_to(
-                        temp_voice, reason="Move to created temp voice"
-                    )  # Move owner to created channel
-                    sentry_sdk.metrics.incr(
-                        "temp_channel_created",
-                        1,
-                    )
-                except discord.HTTPException as e:
-                    if e.code == 40032:
-                        # If owner leaved from creator channel delete temp voice
-                        await self.del_channel(temp_voice.id)
-                        return None
-                    else:
-                        raise e
+        # for key, overwrite in overwrites.items():
+        #     try:
+        #         await temp_voice.set_permissions(
+        #             target=key, overwrite=overwrite
+        #         )
+        #     except discord.NotFound:
+        #         continue
 
-                for key, overwrite in overwrites.items():
-                    try:
-                        await temp_voice.set_permissions(
-                            target=key, overwrite=overwrite
-                        )
-                    except discord.NotFound:
-                        continue
+        # Increment temp channel created metric
+        sentry_sdk.metrics.incr(
+            "temp_channel_created",
+            1,
+            tags={"server": self.guild.id},
+        )
 
-                await self._temp_channels[
-                    temp_voice.id
-                ].send_interface()  # Send control interface
-                return temp_voice
+        return temp_voice if temp_voice.id in self._temp_channels else None
 
     def is_creator_channel(self, channel_id: int) -> bool:
         """
@@ -340,11 +353,11 @@ class ServerTempVoices:
         return False
 
     def get_creator_channels_ids(self) -> list[int]:
-        return self._creator_channels.keys()
+        return self._creator_channels.keys()  # noqa
 
     def channel(self, channel_id: int) -> source.channel_class.TempVoice | None:
         """
-        Return funcs.channel_class.TempVoice by channel id or None if not exists
+        Return TempVoice by channel id or None if not exists
         :param channel_id:
         :return:
         """
@@ -353,7 +366,7 @@ class ServerTempVoices:
 
         if (
             datetime.datetime.now() - self._last_data_update
-            >= datetime.timedelta(minutes=15)
+            >= datetime.timedelta(minutes=5)
         ):
             self._update(self.guild.id)
 

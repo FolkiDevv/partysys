@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import logging
 import logging.handlers
 import os
@@ -6,31 +7,77 @@ import traceback
 from sys import stderr
 
 import discord
+from loguru import logger
 
 from source.bot_class import PartySysBot
 
+LOG_PATH = "./logs"
 
-class OnlyThisLevelFilter(logging.Filter):
-    def __init__(self, level):
-        super().__init__()
-        self.__level = level
-
-    def filter(self, log_record: logging.LogRecord):
-        return log_record.levelno == self.__level
-
-
-inf_handler = logging.handlers.TimedRotatingFileHandler(
-    filename="./logs/info.log", encoding="utf-8", when="d", interval=1
+logger.add(
+    f"{LOG_PATH}/error.log",
+    level="WARNING",
+    rotation="12:00",
+    compression="lzma",
+    enqueue=True,
 )
-inf_handler.setLevel(logging.INFO)
-inf_handler.addFilter(OnlyThisLevelFilter(logging.INFO))
-discord.utils.setup_logging(handler=inf_handler)
-
-err_handler = logging.handlers.TimedRotatingFileHandler(
-    filename="./logs/error.log", encoding="utf-8", when="d", interval=1
+logger.add(
+    f"{LOG_PATH}/info.log",
+    level="INFO",
+    filter=lambda record: record["level"].name == "INFO",
+    rotation="12:00",
+    compression="lzma",
+    enqueue=True,
 )
-err_handler.setLevel(logging.WARNING)
-discord.utils.setup_logging(handler=err_handler)
+
+logger.info("Logger initialized.")
+
+
+class InterceptHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        # Get corresponding Loguru level if it exists.
+        level: str | int
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        # Find caller from where originated the logged message.
+        frame, depth = inspect.currentframe(), 0
+        while frame and (
+            depth == 0 or frame.f_code.co_filename == logging.__file__
+        ):
+            frame = frame.f_back
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
+
+
+discord.utils.setup_logging(handler=InterceptHandler())
+
+
+# class OnlyThisLevelFilter(logging.Filter):
+#     def __init__(self, level):
+#         super().__init__()
+#         self.__level = level
+#
+#     def filter(self, log_record: logging.LogRecord):
+#         return log_record.levelno == self.__level
+#
+#
+# inf_handler = logging.handlers.TimedRotatingFileHandler(
+#     filename="./logs/info.log", encoding="utf-8", when="d", interval=1
+# )
+# inf_handler.setLevel(logging.INFO)
+# inf_handler.addFilter(OnlyThisLevelFilter(logging.INFO))
+# discord.utils.setup_logging(handler=inf_handler)
+#
+# err_handler = logging.handlers.TimedRotatingFileHandler(
+#     filename="./logs/error.log", encoding="utf-8", when="d", interval=1
+# )
+# err_handler.setLevel(logging.WARNING)
+# discord.utils.setup_logging(handler=err_handler)
 
 
 bot_intents = discord.Intents.default()
@@ -50,6 +97,7 @@ COGS = [
     "cogs.voice",
     "cogs.slash_commands",
     "cogs.scheduler",
+    "cogs.healthcheck",
 ]
 
 

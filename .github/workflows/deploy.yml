@@ -5,36 +5,56 @@ on:
     branches:
       - "master"
 
+env:
+  # Use docker.io for Docker Hub if empty
+  REGISTRY: ghcr.io
+  # github.repository as <account>/<repo>
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   build-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+
     steps:
       # Checkout the code
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      # Get the metadata of the docker image
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
       # Login to docker
       # This can be used for both Docker Hub and
       # GitHub container registry.
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
-          # Remove the following line if you want to
-          # login to docker hub.
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
           # secrets are GitHub actions that can be added
           # from settings of the repo.
           password: ${{ secrets.CR_PAT }}
+
       # Build the docker image and push it.
-      - name: Build image
-        uses: docker/build-push-action@v2
+      - name: Build and push image
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # Remove the `gchr.io/` if you're pushing to
-          # Docker Hub
-          tags: ghcr.io/folkidevv/partysys:latest
-  # Name of the job is deploy
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # Name of the job is "deploy"
   deploy:
     needs: build-push
     runs-on: ubuntu-latest
@@ -53,4 +73,4 @@ jobs:
           key: ${{ secrets.KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
 #          script: docker pull ghcr.io/${{ github.repository }}:latest && docker run ghcr.io/${{ github.repository }}:latest
-          script: docker login ghcr.io -u ${{ github.repository_owner }} -p ${{ secrets.CR_PAT }} && cd /usr/local/src/partysys_auto && docker compose pull && docker compose down && docker compose up --force-recreate --build -d && docker image prune -f
+          script: (echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin) && cd /usr/local/src/partysys_auto && docker compose pull && docker compose down && docker compose up --force-recreate --build -d && docker image prune -f && docker logout ghcr.io
