@@ -14,7 +14,7 @@ RUN poetry config virtualenvs.create true &&  \
 
 COPY . /app
 
-RUN chmod 777 /app/logs
+RUN mkdir /app/logs
 
 FROM python:3.12-slim-bullseye as runtime
 
@@ -26,7 +26,7 @@ USER app
 #HEALTHCHECK CMD curl --fail http://localhost:8081 || exit 1
 
 # Copy installed dependencies from the builder image
-COPY --from=builder /app /app
+COPY --chown=app:app --from=builder /app /app
 
 WORKDIR /app
 
