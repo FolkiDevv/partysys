@@ -121,7 +121,7 @@ async def main():
 
 if os.getenv("DEBUG", "0") == "1":
     debug_handler = logging.FileHandler(
-        filename="./logs/debug.log", encoding="utf-8", mode="w"
+        filename=f"{LOG_PATH}/debug.log", encoding="utf-8", mode="w"
     )
     discord.utils.setup_logging(handler=debug_handler)
     # logger.add(f'./logs/debug.log', format="{time} {level} {message}",
