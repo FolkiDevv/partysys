@@ -1,7 +1,7 @@
 services:
   bot:
     image: ghcr.io/folkidevv/partysys:master
-    command: sh -c "sleep 10s ; python main.py"
+#    command: sh -c "sleep 10s ; python main.py"
     environment:
       - DEBUG=${DEBUG}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
