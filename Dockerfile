@@ -14,16 +14,16 @@ RUN poetry config virtualenvs.create true &&  \
 
 COPY . /app
 
-RUN mkdir /app/logs
-
 FROM python:3.12-slim-bullseye as runtime
-
 RUN addgroup --gid 1001 --system app && \
     adduser --no-create-home --shell /bin/false --disabled-password --uid 1001 --system --group app
 
-USER app
+# Create logs directory as root
+USER root
+RUN mkdir -p /app/logs && chown -R app:app /app
 
-#HEALTHCHECK CMD curl --fail http://localhost:8081 || exit 1
+# Switch back to app user
+USER app
 
 # Copy installed dependencies from the builder image
 COPY --chown=app:app --from=builder /app /app
