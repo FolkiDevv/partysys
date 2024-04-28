@@ -18,18 +18,18 @@ FROM python:3.12-slim-bullseye as runtime
 RUN addgroup --gid 1001 --system app && \
     adduser --no-create-home --shell /bin/false --disabled-password --uid 1001 --system --group app
 
-# Create logs directory as root
+# Create logs directory as root and change its ownership to app user
 USER root
-RUN mkdir -p /app/logs
-
-# Copy installed dependencies from the builder image
-COPY --chown=app:app --from=builder /app /app
-
-# Change ownership of /app/logs to app user
-RUN chown -R app:app /app/logs
+RUN mkdir -p /app/logs && \
+    touch /app/logs/error.log && \
+    touch /app/logs/info.log && \
+    chown -R app:app /app/logs
 
 # Switch back to app user
 USER app
+
+# Copy installed dependencies from the builder image
+COPY --chown=app:app --from=builder /app /app
 
 WORKDIR /app
 
