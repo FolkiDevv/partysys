@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import traceback
+from contextlib import suppress
 from datetime import datetime, timedelta
 
 import discord
@@ -130,6 +131,8 @@ class AdvControlInterface(BaseView):
     async def adv_delete(
         self, interaction: discord.Interaction, button: discord.Button
     ):
+        # Disable reminder
+        self.temp_voice.reminder = False
         await self.temp_voice.delete_adv()
         await interaction.response.edit_message(
             view=None, embed=SuccessEmbed("Объявление было удалено.")
@@ -164,10 +167,10 @@ class AdvEmbed(discord.Embed):
 
         text = text[:15]
 
-        if len(temp_voice.channel.members) > 15:
+        if len(temp_voice.channel.members) > 10:
             text.append(
                 f"...\nИ другие <:member_white:1176147115282534440> "
-                f"{len(text) - 15} пользователей."
+                f"{len(text) - 10} пользователей."
             )
 
         if max_users_count == 0:
@@ -175,7 +178,7 @@ class AdvEmbed(discord.Embed):
                 "...\nНеограниченное число <:member_blue:1176147113739026432> "
                 "свободных мест."
             )
-        elif max_users_count - users_count > 15:
+        elif max_users_count - users_count > 10:
             text.append(
                 f"...\nОсталось <:member_blue:1176147113739026432> "
                 f"{max_users_count - users_count} свободных мест."
@@ -256,6 +259,17 @@ class Adv:
             raise UnknownDisError from e
 
     async def update(self, temp_voice: TempVoice, text: str = "") -> None:
+        if self._message is None and self._update_delayed:
+            # If last adv was deleted, but new not sent
+            await self.send(
+                adv_channel=temp_voice.bot.server(
+                    temp_voice.server_id
+                ).adv_channel,
+                temp_voice=temp_voice,
+                text=text,
+            )
+            return
+
         if text:
             self.custom_text = text
         elif self._message is None and not self._update_delayed:
@@ -304,29 +318,31 @@ class Adv:
         except discord.HTTPException as e:
             if e.code == 30046:
                 # If too many requests, remove and send new adv
-                await self.delete()
-                await temp_voice.send_adv(custom_text=self.custom_text)
+                with suppress(discord.NotFound):
+                    await self.delete()
+                    await temp_voice.send_adv(custom_text=self.custom_text)
             else:
                 raise e
 
     async def delete(self) -> bool:
-        if self._message:
-            try:
-                await self._message.delete()
-                self._message = None
-            except discord.NotFound:
-                self._message = None
-            except discord.DiscordServerError as e:
-                if e.code == 0:
-                    try:
-                        msg = await self._message.fetch()
-                        await msg.delete()
-                    except discord.NotFound:
-                        self._message = None
-                else:
-                    raise e
-            return True
-        return False
+        if not self._message:
+            return False
+
+        try:
+            await self._message.delete()
+        except discord.DiscordServerError as e:
+            if e.code == 0:
+                with suppress(discord.NotFound):
+                    msg = await self._message.fetch()
+                    await msg.delete()
+            else:
+                raise e
+        except discord.NotFound:
+            pass
+
+        self._message, self.delete_after = None, None
+        self._update_delayed = False
+        return True
 
 
 class ReminderInterface(BaseView):
@@ -697,7 +713,7 @@ class TempVoice:
         self.owner: discord.Member = owner
         self.adv: Adv | None = None
 
-        self.reminder: datetime | None = None
+        self.reminder: datetime | None | False = None
 
         self.privacy: str = "0"  # 0 - public, 1 - closed, 2 - hidden
         self.invite_url: str | None = None  # Store invite link on this channel
@@ -711,10 +727,11 @@ class TempVoice:
         if (
             self.privacy == "0"
             and self.adv is None
+            and self.reminder is not False
             and self.channel.user_limit > len(self.channel.members)
         ):
             self.reminder = datetime.now() + timedelta(minutes=2.0)
-        else:
+        elif self.reminder:
             self.reminder = None
 
     async def get_invite(self) -> str:
@@ -769,7 +786,8 @@ class TempVoice:
         """
         if self.adv:
             await self.adv.delete()
-            self.adv = None
+            # self.adv = None
+            # self.reminder = False
             self.bot.cur.execute(
                 "UPDATE temp_channels SET dis_adv_msg_id=NULL WHERE dis_id=%s",
                 (self.channel.id,),

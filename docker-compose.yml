@@ -1,6 +1,6 @@
 services:
   bot:
-    image: ghcr.io/folkidevv/partysys:latest
+    image: ghcr.io/folkidevv/partysys:master
     command: sh -c "sleep 10s ; python main.py"
     environment:
       - DEBUG=${DEBUG}
@@ -15,10 +15,10 @@ services:
       resources:
         limits:
           cpus: '0.50'
-          memory: 512M
+          memory: 256M
         reservations:
           cpus: '0.25'
-          memory: 256M
+          memory: 128M
       restart_policy:
         condition: on-failure
         delay: 5s

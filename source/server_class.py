@@ -262,8 +262,9 @@ class ServerTempVoices:
         if query:
             ban_list_raw = self.bot.cur.fetchall()
             for raw_ban in ban_list_raw:
-                banned_member = self.guild.get_member(raw_ban["dis_banned_id"])
-                if banned_member:
+                if banned_member := self.guild.get_member(
+                    raw_ban["dis_banned_id"]
+                ):
                     overwrites[banned_member] = discord.PermissionOverwrite(
                         view_channel=False,
                         connect=False,
