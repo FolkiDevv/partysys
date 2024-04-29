@@ -259,17 +259,6 @@ class Adv:
             raise UnknownDisError from e
 
     async def update(self, temp_voice: TempVoice, text: str = "") -> None:
-        if self._message is None and self._update_delayed:
-            # If last adv was deleted, but new not sent
-            await self.send(
-                adv_channel=temp_voice.bot.server(
-                    temp_voice.server_id
-                ).adv_channel,
-                temp_voice=temp_voice,
-                text=text,
-            )
-            return
-
         if text:
             self.custom_text = text
         elif self._message is None and not self._update_delayed:
