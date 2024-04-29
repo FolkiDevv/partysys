@@ -18,12 +18,6 @@ FROM python:3.12-slim-bullseye as runtime
 RUN addgroup --gid 1001 --system app && \
     adduser --no-create-home --disabled-password --uid 1001 --system --group app
 
-# Create logs directory as root
-USER root
-RUN mkdir -p /app/logs && \
-    chown -R app:app /app/logs && \
-    chmod -R 777 /app/logs
-
 # Switch back to app user
 USER app
 

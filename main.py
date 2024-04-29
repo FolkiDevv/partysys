@@ -3,8 +3,8 @@ import inspect
 import logging
 import logging.handlers
 import os
+import sys
 import traceback
-from sys import stderr
 
 import discord
 from loguru import logger
@@ -13,19 +13,16 @@ from source.bot_class import PartySysBot
 
 LOG_PATH = "./logs"
 
+logger.remove(0)
 logger.add(
-    f"{LOG_PATH}/error.log",
+    sys.stderr,
     level="WARNING",
-    rotation="12:00",
-    compression="lzma",
     enqueue=True,
 )
 logger.add(
-    f"{LOG_PATH}/info.log",
+    sys.stdout,
     level="INFO",
     filter=lambda record: record["level"].name == "INFO",
-    rotation="12:00",
-    compression="lzma",
     enqueue=True,
 )
 
@@ -114,7 +111,7 @@ async def main():
             try:
                 await bot.load_extension(extension)
             except:
-                print(f"Failed to load extension {extension}.", file=stderr)
+                print(f"Failed to load extension {extension}.", file=sys.stderr)
                 logging.error(traceback.format_exc())
         await bot.start(os.getenv("DISCORD_TOKEN"))
 
