@@ -232,6 +232,9 @@ class Adv:
 
         self._update_delayed: bool = False
 
+    def __bool__(self):
+        return self._message is not None
+
     async def send(
         self, adv_channel: discord.TextChannel, temp_voice: TempVoice, text: str
     ) -> int:

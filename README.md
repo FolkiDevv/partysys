@@ -1,0 +1,1 @@
+## Dicord bot for temp voice channels and advertising this channels

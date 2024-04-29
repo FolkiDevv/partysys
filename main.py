@@ -54,29 +54,6 @@ class InterceptHandler(logging.Handler):
 discord.utils.setup_logging(handler=InterceptHandler())
 
 
-# class OnlyThisLevelFilter(logging.Filter):
-#     def __init__(self, level):
-#         super().__init__()
-#         self.__level = level
-#
-#     def filter(self, log_record: logging.LogRecord):
-#         return log_record.levelno == self.__level
-#
-#
-# inf_handler = logging.handlers.TimedRotatingFileHandler(
-#     filename="./logs/info.log", encoding="utf-8", when="d", interval=1
-# )
-# inf_handler.setLevel(logging.INFO)
-# inf_handler.addFilter(OnlyThisLevelFilter(logging.INFO))
-# discord.utils.setup_logging(handler=inf_handler)
-#
-# err_handler = logging.handlers.TimedRotatingFileHandler(
-#     filename="./logs/error.log", encoding="utf-8", when="d", interval=1
-# )
-# err_handler.setLevel(logging.WARNING)
-# discord.utils.setup_logging(handler=err_handler)
-
-
 bot_intents = discord.Intents.default()
 bot_intents.members = True
 bot_intents.guild_reactions = True
@@ -121,8 +98,6 @@ if os.getenv("DEBUG", "0") == "1":
         filename=f"{LOG_PATH}/debug.log", encoding="utf-8", mode="w"
     )
     discord.utils.setup_logging(handler=debug_handler)
-    # logger.add(f'./logs/debug.log', format="{time} {level} {message}",
-    # level="DEBUG", rotation="10:00", compression="zip")
 else:
     import sentry_sdk
 
@@ -144,9 +119,5 @@ else:
             "metric_code_locations": True,
         },
     )
-# logger.remove(handler_id=None) logger.add(f'./logs/info.log', format="{
-# time} {level} {message}", level="INFO", rotation="10:00",
-# compression="zip") logger.add(f'./logs/error.log', format="{time} {level} {
-# message}", level="WARNING", rotation="10:00", compression="zip")
 
 asyncio.run(main())
