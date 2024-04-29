@@ -16,17 +16,17 @@ COPY . /app
 
 FROM python:3.12-slim-bullseye as runtime
 RUN addgroup --gid 1001 --system app && \
-    adduser --no-create-home --shell /bin/false --disabled-password --uid 1001 --system --group app
+    adduser --no-create-home --disabled-password --uid 1001 --system --group app
 
 # Create logs directory as root
 USER root
-RUN mkdir -p /app/logs && chown -R app:app /app
+RUN mkdir -p /app/logs && chown -R app:app /app/logs
 
 # Switch back to app user
-#USER app
+USER app
 
 # Copy installed dependencies from the builder image
-COPY --chown=app:app --from=builder /app /app
+COPY --from=builder /app /app
 
 WORKDIR /app
 
