@@ -20,7 +20,9 @@ RUN addgroup --gid 1001 --system app && \
 
 # Create logs directory as root
 USER root
-RUN mkdir -p /app/logs && chown -R app:app /app/logs
+RUN mkdir -p /app/logs && \
+    chown -R app:app /app/logs && \
+    chmod -R 777 /app/logs
 
 # Switch back to app user
 USER app
