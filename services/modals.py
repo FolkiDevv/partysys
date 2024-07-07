@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from re import fullmatch
-
 import discord
 
-import source.bot_class
-import source.errors
-from source.base_classes import BaseModal
-from source.embeds import SuccessEmbed
+import services.bot_class
+import services.errors
+from services.base_classes import BaseModal
+from services.embeds import SuccessEmbed
 
 
 # noinspection PyUnresolvedReferences
 class LimitModal(BaseModal):
-    def __init__(self, bot: source.bot_class.PartySysBot, current_limit: int):
+    def __init__(self, bot: services.bot_class.PartySysBot, current_limit: int):
         super().__init__(
             title="Изменить лимит пользователей", custom_id="limit:modal"
         )
@@ -28,10 +26,8 @@ class LimitModal(BaseModal):
         self.add_item(self.text_inp)
 
     async def on_submit(self, interaction: discord.Interaction):
-        server = self.bot.server(interaction.guild_id)
-        if server:
-            temp_voice = server.get_user_channel(interaction.user)
-            if temp_voice:
+        if server := self.bot.server(interaction.guild_id):
+            if temp_voice := server.get_user_channel(interaction.user):
                 if not self.text_inp.value or self.text_inp.value == "0":
                     await temp_voice.channel.edit(user_limit=0)
                     await interaction.response.send_message(
@@ -41,32 +37,33 @@ class LimitModal(BaseModal):
                         ),
                         ephemeral=True,
                     )
-                elif fullmatch(r"^[0-9]+$", self.text_inp.value):
-                    await temp_voice.channel.edit(
-                        user_limit=int(self.text_inp.value)
-                    )
-                    await interaction.response.send_message(
-                        embed=SuccessEmbed(
-                            f"Лимит по количеству пользователей сменен на: "
-                            f"**{self.text_inp.value}**."
-                        ),
-                        ephemeral=True,
-                    )
                 else:
-                    raise source.errors.NumbersOnly
+                    try:
+                        await temp_voice.channel.edit(
+                            user_limit=int(self.text_inp.value)
+                        )
+                        await interaction.response.send_message(
+                            embed=SuccessEmbed(
+                                f"Лимит по количеству пользователей сменен на: "
+                                f"**{self.text_inp.value}**."
+                            ),
+                            ephemeral=True,
+                        )
+                    except ValueError as e:
+                        raise services.errors.NumbersOnlyError from e
             else:
-                raise source.errors.UserNoTempChannels
+                raise services.errors.UserNoTempChannelsError
         else:
-            raise source.errors.BotNotConfigured
+            raise services.errors.BotNotConfiguredError
 
 
 # noinspection PyUnresolvedReferences
 class RenameModal(BaseModal):
-    def __init__(self, bot: source.bot_class.PartySysBot, current_name: str):
+    def __init__(self, bot: services.bot_class.PartySysBot, current_name: str):
         super().__init__(
             title="Изменить название канала", custom_id="rename:modal"
         )
-        self.bot: source.bot_class.PartySysBot = bot
+        self.bot: services.bot_class.PartySysBot = bot
         self.text_inp = discord.ui.TextInput(
             label="Название канала",
             style=discord.TextStyle.short,
@@ -78,10 +75,8 @@ class RenameModal(BaseModal):
         self.add_item(self.text_inp)
 
     async def on_submit(self, interaction: discord.Interaction):
-        server = self.bot.server(interaction.guild_id)
-        if server:
-            temp_voice = server.get_user_channel(interaction.user)
-            if temp_voice:
+        if server := self.bot.server(interaction.guild_id):
+            if temp_voice := server.get_user_channel(interaction.user):
                 await temp_voice.channel.edit(name=self.text_inp.value)
                 await interaction.response.send_message(
                     embed=SuccessEmbed(
@@ -91,6 +86,6 @@ class RenameModal(BaseModal):
                     ephemeral=True,
                 )
             else:
-                raise source.errors.UserNoTempChannels
+                raise services.errors.UserNoTempChannelsError
         else:
-            raise source.errors.BotNotConfigured
+            raise services.errors.BotNotConfiguredError

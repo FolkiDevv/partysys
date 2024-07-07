@@ -7,7 +7,7 @@ import dbutils.steady_db
 import pymysql
 from discord.ext import commands
 
-import source.server_class
+import services
 
 
 class PartySysBot(
@@ -27,25 +27,14 @@ class PartySysBot(
         )
         with con:
             logging.info(f'Connected to {getenv("DB_NAME")}')
-            self.cur: pymysql.Connection.cursorclass = con.cursor()
+            self.cur = con.cursor()
 
-        self.servers: dict[int, source.server_class.ServerTempVoices] = {}
+        self.servers: dict[int, services.ServerTempVoices] = {}
 
-    def server(
-        self, guild_id: int
-    ) -> source.server_class.ServerTempVoices | None:
-        """
-        Return funcs.server_class.ServerTempVoices by guild id or None
-        if not exists
-        :param guild_id:
-        :return:
-        """
+    def server(self, guild_id: int) -> services.ServerTempVoices | None:
         if guild_id not in self.servers:
-            guild = self.get_guild(guild_id)
-            if guild:
-                self.servers[guild_id] = source.server_class.ServerTempVoices(
-                    self, guild
-                )
+            if guild := self.get_guild(guild_id):
+                self.servers[guild_id] = services.ServerTempVoices(self, guild)
                 return self.servers[guild_id]
             else:
                 return None

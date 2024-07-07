@@ -1,22 +1,28 @@
-import asyncio
 import inspect
 import logging
 import logging.handlers
 import os
 import sys
-import traceback
 
 import discord
 from loguru import logger
+from tortoise import Tortoise, run_async
 
-from source.bot_class import PartySysBot
+import services
 
 LOG_PATH = "./logs"
+COGS = [
+    "cogs.controller",
+    "cogs.voice",
+    "cogs.slash_commands",
+    "cogs.scheduler",
+    # "cogs.healthcheck",
+]
 
 logger.remove(0)
 logger.add(
     sys.stderr,
-    level="WARNING",
+    level="DEBUG" if os.getenv("DEBUG", "0") == "1" else "WARNING",
     enqueue=True,
 )
 logger.add(
@@ -60,26 +66,19 @@ bot_intents.guild_reactions = True
 bot_intents.messages = True
 bot_intents.message_content = True
 bot_intents.guild_messages = True
-bot = PartySysBot(
+
+bot = services.PartySysBot(
     command_prefix="n.",
     intents=bot_intents,
     activity=discord.CustomActivity(name="Работает в тестовом режиме."),
 )
 bot.remove_command("help")
-COGS = [
-    "cogs.controller",
-    "cogs.voice",
-    "cogs.slash_commands",
-    "cogs.scheduler",
-    # "cogs.healthcheck",
-]
 
 
 @bot.event
 async def on_ready():
-    logging.debug(f"Logged in as {bot.user.name} {bot.user.id}.")
-    logging.info("Bot ready!")
-    await bot.tree.sync(guild=discord.Object(838114056123842570))
+    logging.info(f"Logged in as {bot.user.name} {bot.user.id}.")
+    await bot.tree.sync(guild=discord.Object(os.getenv("DEV_SERVER_ID")))
 
 
 async def main():
@@ -87,18 +86,19 @@ async def main():
         for extension in COGS:
             try:
                 await bot.load_extension(extension)
-            except:
-                print(f"Failed to load extension {extension}.", file=sys.stderr)
-                logging.error(traceback.format_exc())
+            except Exception as e:
+                logging.error(e)
         await bot.start(os.getenv("DISCORD_TOKEN"))
 
+        # Initialize Tortoise
+        await Tortoise.init(
+            db_url=f'mysql://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}'
+            f'@{os.getenv("DB_HOST")}:3306/{os.getenv("DB_NAME")}',
+            modules={"models": ["partysys.models"]},
+        )
 
-if os.getenv("DEBUG", "0") == "1":
-    debug_handler = logging.FileHandler(
-        filename=f"{LOG_PATH}/debug.log", encoding="utf-8", mode="w"
-    )
-    discord.utils.setup_logging(handler=debug_handler)
-else:
+
+if os.getenv("DEBUG", "0") == "0":
     import sentry_sdk
 
     sentry_sdk.init(
@@ -120,4 +120,4 @@ else:
         },
     )
 
-asyncio.run(main())
+run_async(main())

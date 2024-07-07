@@ -7,5 +7,6 @@
     <option name="runRuffOnSave" value="true" />
     <option name="useRuffFormat" value="true" />
     <option name="useRuffLsp" value="true" />
+    <option name="useRuffServer" value="true" />
   </component>
 </project>

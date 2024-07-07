@@ -2,17 +2,7 @@ from aiohttp import web
 from discord.ext import commands
 from loguru import logger
 
-from source.bot_class import PartySysBot
-
-# import os
-# # --- LOAD ENV VARS --- #
-# dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-# if os.path.exists(dotenv_path):
-#     load_dotenv(dotenv_path)
-
-
-# def check_if_it_is_me(interaction: discord.Interaction) -> bool:
-#     return interaction.user.id == os.getenv("DEV_ID")
+from services.bot_class import PartySysBot
 
 
 class HealthCheck(commands.Cog):

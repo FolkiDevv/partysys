@@ -5,8 +5,8 @@ import logging
 import discord
 from discord import Interaction
 
-from source.embeds import ErrorEmbed
-from source.errors import CustomExc
+from services.embeds import ErrorEmbed
+from services.errors import UserActionError
 
 
 class BaseView(discord.ui.View):
@@ -15,7 +15,7 @@ class BaseView(discord.ui.View):
         interaction: discord.Interaction,
         error: Exception,
         item: discord.ui.Item,
-    ) -> None:
+    ):
         error = getattr(error, "original", error)
 
         embed = ErrorEmbed()
@@ -29,8 +29,8 @@ class BaseView(discord.ui.View):
                     embed=embed,
                     delete_after=10.0,
                 )
-            elif isinstance(error, CustomExc):
-                embed.description = error.err_msg
+            elif isinstance(error, UserActionError):
+                embed.description = str(error)
                 await interaction.response.send_message(
                     ephemeral=True, embed=embed
                 )
@@ -43,9 +43,7 @@ class BaseView(discord.ui.View):
 
 
 class BaseModal(discord.ui.Modal):
-    async def on_error(
-        self, interaction: Interaction, error: Exception, /
-    ) -> None:
+    async def on_error(self, interaction: Interaction, error: Exception, /):
         error = getattr(error, "original", error)
 
         embed = ErrorEmbed()
@@ -55,8 +53,8 @@ class BaseModal(discord.ui.Modal):
                     "Не можем найти исходное сообщение с интерфейсом."
                 )
                 await interaction.channel.send(embed=embed, delete_after=10.0)
-            elif isinstance(error, CustomExc):
-                embed.description = error.err_msg
+            elif isinstance(error, UserActionError):
+                embed.description = str(error)
                 await interaction.response.send_message(
                     ephemeral=True, embed=embed
                 )

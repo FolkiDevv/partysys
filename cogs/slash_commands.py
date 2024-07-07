@@ -2,28 +2,14 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-import source.bot_class
-from source.channel_class import ControlInterface
-from source.embeds import ChannelControlEmbed
-from source.errors import BotNotConfigured
-
-# from dotenv import load_dotenv
-#
-# # --- LOAD ENV VARS ---#
-# dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-# if os.path.exists(dotenv_path):
-#     load_dotenv(dotenv_path)
-#
-#
-# # --- END LOAD ENV VARS --- #
-
-
-# def check_if_it_is_me(interaction: discord.Interaction) -> bool:
-#     return interaction.user.id == os.getenv("DEV_ID")
+import services.bot_class
+from services.embeds import ChannelControlEmbed
+from services.errors import BotNotConfiguredError
+from services.temp_voice import ControlInterface
 
 
 class SlashCommands(commands.Cog):
-    def __init__(self, bot: source.bot_class.PartySysBot):
+    def __init__(self, bot: services.bot_class.PartySysBot):
         self.bot = bot
         self.persistent_views_added = False
 
@@ -37,7 +23,7 @@ class SlashCommands(commands.Cog):
     async def adv_guide(self, interaction: discord.Interaction):
         server = self.bot.server(interaction.guild_id)
         if not server:
-            raise BotNotConfigured
+            raise BotNotConfiguredError
 
         embed = discord.Embed(
             title="🔎 В поисках команды?", color=0x36393F, description=""
@@ -96,7 +82,7 @@ class SlashCommands(commands.Cog):
     async def control_interface(self, interaction: discord.Interaction):
         server = self.bot.server(interaction.guild_id)
         if not server:
-            raise BotNotConfigured
+            raise BotNotConfiguredError
 
         await interaction.response.send_message(
             ephemeral=True, content="Отправлено в этот канал."

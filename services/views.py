@@ -4,16 +4,16 @@ import discord
 import sentry_sdk
 from discord import Interaction
 
-import source.bot_class
-from source import errors
-from source.base_classes import BaseView
-from source.embeds import SuccessEmbed
+import services.bot_class
+from services import errors
+from services.base_classes import BaseView
+from services.embeds import SuccessEmbed
 
 
 class KickInterface(BaseView):
     def __init__(
         self,
-        bot: source.bot_class.PartySysBot,
+        bot: services.bot_class.PartySysBot,
         users: list[discord.Member],
         owner: discord.Member,
     ):
@@ -58,14 +58,14 @@ class KickInterface(BaseView):
                     tags={"server": interaction.guild_id},
                 )
             else:
-                raise errors.UserNoTempChannels
+                raise errors.UserNoTempChannelsError
         else:
-            raise errors.BotNotConfigured
+            raise errors.BotNotConfiguredError
         return False
 
 
 class TransferOwnerInterface(BaseView):
-    def __init__(self, bot: source.bot_class.PartySysBot):
+    def __init__(self, bot: services.bot_class.PartySysBot):
         super().__init__()
         self.bot = bot
 
@@ -76,7 +76,7 @@ class TransferOwnerInterface(BaseView):
     )
     async def select_callback(
         self, interaction: discord.Interaction, select: discord.ui.UserSelect
-    ) -> None:
+    ):
         server = self.bot.server(interaction.guild_id)
         if server:
             temp_voice = server.get_user_channel(
@@ -105,13 +105,13 @@ class TransferOwnerInterface(BaseView):
                     tags={"server": interaction.guild_id},
                 )
             else:
-                raise errors.UserNoTempChannels
+                raise errors.UserNoTempChannelsError
         else:
-            raise errors.BotNotConfigured
+            raise errors.BotNotConfiguredError
 
 
 class BanInterface(BaseView):
-    def __init__(self, bot: source.bot_class.PartySysBot):
+    def __init__(self, bot: services.bot_class.PartySysBot):
         super().__init__()
         self.bot = bot
 
@@ -122,7 +122,7 @@ class BanInterface(BaseView):
     )
     async def select_callback(
         self, interaction: discord.Interaction, select: discord.ui.UserSelect
-    ) -> None:
+    ):
         server = self.bot.server(interaction.guild_id)
         if server:
             temp_voice = server.get_user_channel(interaction.user)
@@ -143,15 +143,15 @@ class BanInterface(BaseView):
                     tags={"server": interaction.guild_id},
                 )
             else:
-                raise errors.UserNoTempChannels
+                raise errors.UserNoTempChannelsError
         else:
-            raise errors.BotNotConfigured
+            raise errors.BotNotConfiguredError
 
 
 class UnbanInterface(BaseView):
     def __init__(
         self,
-        bot: source.bot_class.PartySysBot,
+        bot: services.bot_class.PartySysBot,
         guild: discord.Guild,
         ban_list_raw: dict,
     ):
@@ -174,7 +174,7 @@ class UnbanInterface(BaseView):
 
         self.add_item(self.select_user)
 
-    async def interaction_check(self, interaction: discord.Interaction) -> None:
+    async def interaction_check(self, interaction: discord.Interaction):
         server = self.bot.server(interaction.guild_id)
         if server:
             temp_voice = server.get_user_channel(interaction.user)
@@ -202,13 +202,13 @@ class UnbanInterface(BaseView):
                     tags={"server": interaction.guild_id},
                 )
             else:
-                raise errors.UserNoTempChannels
+                raise errors.UserNoTempChannelsError
         else:
-            raise errors.BotNotConfigured
+            raise errors.BotNotConfiguredError
 
 
 class TakeAccessInterface(BaseView):
-    def __init__(self, bot: source.bot_class.PartySysBot):
+    def __init__(self, bot: services.bot_class.PartySysBot):
         super().__init__()
         self.bot = bot
 
@@ -220,7 +220,7 @@ class TakeAccessInterface(BaseView):
     )
     async def select_callback(
         self, interaction: discord.Interaction, select: discord.ui.UserSelect
-    ) -> None:
+    ):
         server = self.bot.server(interaction.guild_id)
         if server:
             temp_voice = server.get_user_channel(
@@ -250,13 +250,13 @@ class TakeAccessInterface(BaseView):
                     tags={"server": interaction.guild_id},
                 )
             else:
-                raise errors.UserNoTempChannels
+                raise errors.UserNoTempChannelsError
         else:
-            raise errors.BotNotConfigured
+            raise errors.BotNotConfiguredError
 
 
 class GetAccessInterface(BaseView):
-    def __init__(self, bot: source.bot_class.PartySysBot):
+    def __init__(self, bot: services.bot_class.PartySysBot):
         super().__init__()
         self.bot = bot
 
@@ -268,7 +268,7 @@ class GetAccessInterface(BaseView):
     )
     async def select_callback(
         self, interaction: discord.Interaction, select: discord.ui.UserSelect
-    ) -> None:
+    ):
         server = self.bot.server(interaction.guild_id)
         if server:
             temp_voice = server.get_user_channel(
@@ -294,13 +294,13 @@ class GetAccessInterface(BaseView):
                     tags={"server": interaction.guild_id},
                 )
             else:
-                raise errors.UserNoTempChannels
+                raise errors.UserNoTempChannelsError
         else:
-            raise errors.BotNotConfigured
+            raise errors.BotNotConfiguredError
 
 
 class PrivacyInterface(BaseView):
-    def __init__(self, bot: source.bot_class.PartySysBot, privacy: str):
+    def __init__(self, bot: services.bot_class.PartySysBot, privacy: str):
         super().__init__()
         self.bot = bot
 
@@ -362,9 +362,9 @@ class PrivacyInterface(BaseView):
                     await temp_voice.delete_adv()
                 return False
             else:
-                raise errors.UserNoTempChannels
+                raise errors.UserNoTempChannelsError
         else:
-            raise errors.BotNotConfigured
+            raise errors.BotNotConfiguredError
 
 
 class JoinInterface(BaseView):

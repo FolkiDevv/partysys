@@ -2,20 +2,7 @@ from datetime import datetime
 
 from discord.ext import commands, tasks
 
-from source.bot_class import PartySysBot
-
-# import os
-# # --- LOAD ENV VARS ---#
-# dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-# if os.path.exists(dotenv_path):
-#     load_dotenv(dotenv_path)
-#
-#
-# # --- END LOAD ENV VARS --- #
-
-
-# def check_if_it_is_me(interaction: discord.Interaction) -> bool:
-#     return interaction.user.id == os.getenv("DEV_ID")
+from services.bot_class import PartySysBot
 
 
 class Scheduler(commands.Cog):
@@ -25,7 +12,7 @@ class Scheduler(commands.Cog):
     @tasks.loop(minutes=1.0)
     async def adv_deleter(self):
         for server in self.bot.servers.copy().values():
-            for temp_voice in server.all_channels().copy().values():
+            for temp_voice in server.all_channels().values():
                 if (
                     temp_voice.adv
                     and temp_voice.adv.delete_after
@@ -35,8 +22,8 @@ class Scheduler(commands.Cog):
 
     @tasks.loop(minutes=1.0)
     async def reminder_sender(self):
-        for server in self.bot.servers.values():
-            for temp_voice in list(server.all_channels().copy().values()):
+        for server in self.bot.servers.copy().values():
+            for temp_voice in list(server.all_channels().values()):
                 if (
                     temp_voice.reminder
                     and datetime.now() >= temp_voice.reminder
@@ -51,14 +38,7 @@ class Scheduler(commands.Cog):
     async def before_adv_deleter(self):
         await self.bot.wait_until_ready()
 
-    # @commands.Cog.listener()
-    # async def on_ready(self):
-    #     if not self.adv_deleter.is_running():
-    #         self.adv_deleter.start()
-    #     if not self.reminder_sender.is_running():
-    #         self.reminder_sender.start()
-
-    def cog_load(self) -> None:
+    def cog_load(self):
         if not self.adv_deleter.is_running():
             self.adv_deleter.start()
         if not self.reminder_sender.is_running():
