@@ -4,31 +4,35 @@ import discord
 from discord.ext import commands
 from sentry_sdk import metrics
 
-from services.bot_class import PartySysBot
+from src import services
+from src.models import TempChannels
 
 
 class Voice(commands.Cog):
-    def __init__(self, bot: PartySysBot):
+    def __init__(self, bot: services.Bot):
         self.bot = bot
         self.channels_restored = False
 
     @commands.Cog.listener()
     async def on_voice_state_update(
-        self,
-        member: discord.Member,
-        before: discord.VoiceState,
-        after: discord.VoiceState,
+            self,
+            member: discord.Member,
+            before: discord.VoiceState,
+            after: discord.VoiceState,
     ):
         if after.channel == before.channel:
             return None
 
-        if after.channel.type == discord.ChannelType.voice and (
-            after_server := self.bot.server(after.channel.guild.id)
+        if (
+                after.channel
+                and after.channel.type == discord.ChannelType.voice
+                and (after_server := self.bot.server(after.channel.guild.id))
         ):
+            await after_server.update_server_data()
             if after_server.is_creator_channel(after.channel.id):
                 # Check if user join in Creator channel
                 if temp_voice := await after_server.create_channel(
-                    member, after.channel.id
+                        member, after.channel.id
                 ):
                     logging.info(
                         f"Temp voice {temp_voice.id} created and user "
@@ -45,9 +49,12 @@ class Voice(commands.Cog):
                     after_temp_voice.updated()
                     await after_temp_voice.update_adv()
 
-        if before.channel.type == discord.ChannelType.voice and (
-            before_server := self.bot.server(before.channel.guild.id)
+        if (
+                before.channel
+                and before.channel.type == discord.ChannelType.voice
+                and (before_server := self.bot.server(before.channel.guild.id))
         ):
+            await before_server.update_server_data()
             if before_server.is_temp_channel(before.channel.id):
                 # Check if user leave Temp channel
                 if not len(before.channel.members):
@@ -58,14 +65,15 @@ class Voice(commands.Cog):
                     )
                 else:
                     if before_temp_voice := before_server.channel(
-                        before.channel.id
+                            before.channel.id
                     ):
                         before_temp_voice.updated()
                         await before_temp_voice.update_adv()
 
     @commands.Cog.listener()
     async def on_guild_channel_update(
-        self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel
+            self, before: discord.abc.GuildChannel,
+            after: discord.abc.GuildChannel
     ):
         """
         Check if updated channel is temp channel and update adv (if existed)
@@ -74,7 +82,7 @@ class Voice(commands.Cog):
         :return:
         """
         if after.type == discord.ChannelType.voice and (
-            server := self.bot.server(after.guild.id)
+                server := self.bot.server(after.guild.id)
         ):
             if temp_voice := server.channel(before.id):
                 temp_voice.updated()
@@ -84,17 +92,15 @@ class Voice(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         if not self.channels_restored:
-            self.bot.cur.execute("SELECT * FROM temp_channels WHERE deleted=0")
-            raw_channels = self.bot.cur.fetchall()
-            for raw_channel in raw_channels:
-                if channel := self.bot.get_channel(raw_channel["dis_id"]):
+            for raw_channel in await TempChannels.filter(deleted=0):
+                if channel := self.bot.get_channel(raw_channel.dis_id):
                     temp_channel = await self.bot.server(
                         channel.guild.id
                     ).restore_channel(
                         channel,
-                        raw_channel["dis_owner_id"],
-                        raw_channel["dis_creator_id"],
-                        raw_channel["dis_adv_msg_id"],
+                        raw_channel.dis_owner_id,
+                        raw_channel.dis_creator_id,
+                        raw_channel.dis_adv_msg_id,
                     )
                     if not temp_channel.channel.members:
                         await self.bot.server(channel.guild.id).del_channel(
@@ -104,5 +110,5 @@ class Voice(commands.Cog):
             logging.info("All channels restored!")
 
 
-async def setup(bot: PartySysBot):
+async def setup(bot: services.Bot):
     await bot.add_cog(Voice(bot))

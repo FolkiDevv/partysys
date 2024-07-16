@@ -2,14 +2,12 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-import services.bot_class
-from services.embeds import ChannelControlEmbed
-from services.errors import BotNotConfiguredError
-from services.temp_voice import ControlInterface
+from src import services, ui
+from src.services import errors
 
 
 class SlashCommands(commands.Cog):
-    def __init__(self, bot: services.bot_class.PartySysBot):
+    def __init__(self, bot: services.Bot):
         self.bot = bot
         self.persistent_views_added = False
 
@@ -23,7 +21,7 @@ class SlashCommands(commands.Cog):
     async def adv_guide(self, interaction: discord.Interaction):
         server = self.bot.server(interaction.guild_id)
         if not server:
-            raise BotNotConfiguredError
+            raise errors.BotNotConfiguredError
 
         embed = discord.Embed(
             title="🔎 В поисках команды?", color=0x36393F, description=""
@@ -82,19 +80,19 @@ class SlashCommands(commands.Cog):
     async def control_interface(self, interaction: discord.Interaction):
         server = self.bot.server(interaction.guild_id)
         if not server:
-            raise BotNotConfiguredError
+            raise errors.BotNotConfiguredError
 
         await interaction.response.send_message(
             ephemeral=True, content="Отправлено в этот канал."
         )
         await interaction.channel.send(
-            embed=ChannelControlEmbed(), view=ControlInterface(self.bot)
+            embed=ui.ChannelControlEmbed(), view=ui.ControlInterface(self.bot)
         )
 
     @commands.Cog.listener()
     async def on_ready(self):
         if not self.persistent_views_added:
-            self.bot.add_view(ControlInterface(self.bot))
+            self.bot.add_view(ui.ControlInterface(self.bot))
             self.persistent_views_added = True
 
 

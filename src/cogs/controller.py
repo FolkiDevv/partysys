@@ -6,25 +6,26 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from services.bot_class import PartySysBot
-from services.embeds import ErrorEmbed
-from services.errors import UserActionError
+from src import services, ui
+from src.services import errors
 
 
+# TODO: сделать единую обработку ошибок
 # noinspection PyUnresolvedReferences
 class Controller(commands.Cog):
-    def __init__(self, bot: PartySysBot):
+    def __init__(self, bot: services.Bot):
         self.bot = bot
 
     @staticmethod
     async def on_application_command_error(
-        interaction: discord.Interaction, error: app_commands.AppCommandError
+            interaction: discord.Interaction,
+            error: app_commands.AppCommandError
     ):
         error = getattr(error, "original", error)
         if isinstance(error, app_commands.CommandNotFound):
             return  # отключаем вывод ошибки о ненайденной команде
 
-        embed = ErrorEmbed()
+        embed = ui.ErrorEmbed()
         try:
             if isinstance(error, app_commands.MissingPermissions):
                 embed.description = (
@@ -40,10 +41,10 @@ class Controller(commands.Cog):
                 )
             elif isinstance(error, app_commands.errors.CheckFailure):
                 embed.description = "Вы не можете использовать эту команду."
-            elif isinstance(error, UserActionError):
+            elif isinstance(error, errors.UserActionError):
                 embed.description = str(error)
             elif not isinstance(
-                error, app_commands.errors.CommandInvokeError
+                    error, app_commands.errors.CommandInvokeError
             ) or not isinstance(error, discord.errors.NotFound):
                 raise error
 

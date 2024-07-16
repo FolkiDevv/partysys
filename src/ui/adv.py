@@ -1,26 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from contextlib import suppress
 from datetime import datetime, timedelta
 
 import discord
 import sentry_sdk
 
-import services
-from services.base_classes import BaseModal, BaseView
-from services.embeds import (
-    InterfaceEmbed,
-    SuccessEmbed,
-)
-from services.errors import (
-    AdvChannelIsFullError,
-    AdvRequirePublicPrivacyError,
-    UnknownDisError,
-    UserNoTempChannelsError,
-)
-from services.views import JoinInterface
+from src import services, ui
+from src.services import base_classes, errors
+from src.utils import Privacy
 
 
 class Adv:
@@ -34,32 +23,29 @@ class Adv:
     def __bool__(self):
         return self._message is not None
 
+    # TODO: Добавить адекватную реакцию на ошибки (например, нет прав и т.п.)
     async def send(
         self,
         adv_channel: discord.TextChannel,
         temp_voice: services.TempVoice,
         text: str,
     ) -> int:
-        try:
-            self.custom_text = text
+        self.custom_text = text
 
-            if temp_voice.channel.user_limit == 0:
-                # If channel has unlimited slots, adv will be deleted after 3
-                # minutes without changes
-                self.delete_after = datetime.now() + timedelta(minutes=3.0)
+        if temp_voice.channel.user_limit == 0:
+            # If channel has unlimited slots, adv will be deleted after 3
+            # minutes without changes
+            self.delete_after = datetime.now() + timedelta(minutes=3.)
 
-            self._message = await adv_channel.send(
-                embed=AdvEmbed(temp_voice=temp_voice, text=self.custom_text),
-                view=JoinInterface(
-                    invite_url=await temp_voice.invite_url,
-                    disabled=len(temp_voice.channel.members)
-                    >= temp_voice.channel.user_limit,
-                ),
-            )
-            return self._message.id
-        except Exception as e:
-            logging.error(e)
-            raise UnknownDisError from e
+        self._message = await adv_channel.send(
+            embed=AdvEmbed(temp_voice=temp_voice, text=self.custom_text),
+            view=ui.JoinInterface(
+                invite_url=await temp_voice.invite_url,
+                disabled=len(temp_voice.channel.members)
+                >= temp_voice.channel.user_limit,
+            ),
+        )
+        return self._message.id
 
     async def update(
         self, temp_voice: services.TempVoice, text: str = ""
@@ -80,15 +66,15 @@ class Adv:
             self._update_delayed = False
 
         if temp_voice.channel.user_limit == 0:
-            self.delete_after = datetime.now() + timedelta(minutes=3.0)
+            self.delete_after = datetime.now() + timedelta(minutes=3.)
         elif len(temp_voice.channel.members) >= temp_voice.channel.user_limit:
-            self.delete_after = datetime.now() + timedelta(minutes=4.0)
+            self.delete_after = datetime.now() + timedelta(minutes=4.)
         else:
             self.delete_after = None
 
         view = None
-        if temp_voice.privacy not in ("1", "2"):
-            view = JoinInterface(
+        if temp_voice.privacy == Privacy.PUBLIC:
+            view = ui.JoinInterface(
                 invite_url=await temp_voice.invite_url,
                 disabled=len(temp_voice.channel.members)
                 >= temp_voice.channel.user_limit
@@ -100,7 +86,8 @@ class Adv:
             if self._message:
                 await self._message.edit(
                     embed=AdvEmbed(
-                        temp_voice=temp_voice, text=self.custom_text
+                        temp_voice=temp_voice,
+                        text=self.custom_text,
                     ),
                     view=view,
                 )
@@ -137,7 +124,7 @@ class Adv:
         return True
 
 
-class AdvModal(BaseModal):
+class AdvModal(base_classes.BaseModal):
     def __init__(self, temp_voice: services.TempVoice):
         super().__init__(
             title="Изменить объявление"
@@ -166,15 +153,15 @@ class AdvModal(BaseModal):
             await self.temp_voice.update_adv(custom_text=self.text_inp.value)
             await interaction.response.edit_message(
                 view=None,
-                embed=SuccessEmbed("Объявление было отредактировано."),
+                embed=ui.SuccessEmbed("Объявление было отредактировано."),
             )
         else:
             await self.temp_voice.send_adv(custom_text=self.text_inp.value)
             await interaction.response.send_message(
                 ephemeral=True,
-                embed=SuccessEmbed(
+                embed=ui.SuccessEmbed(
                     "Объявление было отправлено."
-                    if self.temp_voice.channel.user_limit > 0
+                    if self.temp_voice.channel.user_limit
                     else "Объявление было отправлено.\nУ вашего канала нет "
                     "ограничению по числу пользователей,"
                     "поэтому объявление будет удалено спустя 2 минуты простоя "
@@ -188,10 +175,12 @@ class AdvModal(BaseModal):
             )
 
 
-class AdvControlInterface(BaseView):
-    def __init__(self, temp_voice: services.TempVoice):
-        super().__init__()
-        self.temp_voice = temp_voice
+class AdvControlInterface(base_classes.BaseView):
+    def __init__(
+            self,
+            bot: services.Bot
+    ):
+        super().__init__(bot)
 
     @discord.ui.button(
         emoji="📝", custom_id="adv:public", style=discord.ButtonStyle.primary
@@ -203,9 +192,9 @@ class AdvControlInterface(BaseView):
             ):
                 await interaction.response.send_modal(AdvModal(self.temp_voice))
             else:
-                raise AdvChannelIsFullError
+                raise errors.AdvChannelIsFullError
         else:
-            raise AdvRequirePublicPrivacyError
+            raise errors.AdvRequirePublicPrivacyError
 
     @discord.ui.button(
         emoji="🗑️", custom_id="adv:delete", style=discord.ButtonStyle.red
@@ -214,7 +203,7 @@ class AdvControlInterface(BaseView):
         self.temp_voice.reminder = False  # Disable reminder
         await self.temp_voice.delete_adv()
         await interaction.response.edit_message(
-            view=None, embed=SuccessEmbed("Объявление было удалено.")
+            view=None, embed=ui.SuccessEmbed("Объявление было удалено.")
         )
 
 
@@ -245,7 +234,7 @@ class AdvEmbed(discord.Embed):
 
         text = text[:10]
 
-        if len(temp_voice.channel.members) > 10:
+        if users_count > 10:
             text.append(
                 f"...\nИ другие <:member_white:1176147115282534440> "
                 f"{len(text) - 10} пользователей."
@@ -307,20 +296,18 @@ class AdvEmbed(discord.Embed):
         self.timestamp = datetime.now()
 
 
-class AdvInterface(BaseView):
-    def __init__(self, bot: services.PartySysBot):
-        super().__init__(timeout=None)
-        self.bot = bot
+class AdvInterface(base_classes.BaseView):
+    def __init__(self, bot: services.Bot):
+        super().__init__(bot, timeout=None)
 
     def check(self, interaction: discord.Interaction) -> services.TempVoice:
-        server = self.bot.server(interaction.guild_id)
-        if server:
+        if server := self.bot.server(interaction.guild_id):
             temp_channel = server.get_user_channel(
                 interaction.user, interaction.channel_id
             )
             if temp_channel:
                 return temp_channel
-        raise UserNoTempChannelsError
+        raise errors.UserNoTempChannelsError
 
     @staticmethod
     def check_decorator(func):
@@ -334,7 +321,7 @@ class AdvInterface(BaseView):
             if temp_voice:
                 return await func(self, temp_voice, *args, **kwargs)
             else:
-                raise UserNoTempChannelsError
+                raise errors.UserNoTempChannelsError
 
         return _wrapper
 
@@ -344,16 +331,16 @@ class AdvInterface(BaseView):
             if temp_voice.channel.user_limit > len(temp_voice.channel.members):
                 await interaction.response.send_modal(AdvModal(temp_voice))
             else:
-                raise AdvChannelIsFullError
+                raise errors.AdvChannelIsFullError
         else:
-            raise AdvRequirePublicPrivacyError
+            raise errors.AdvRequirePublicPrivacyError
 
     @staticmethod
     async def handle_existing_adv(temp_voice, interaction):
         await interaction.response.send_message(
             ephemeral=True,
-            view=AdvControlInterface(temp_voice),
-            embed=InterfaceEmbed(
+            view=AdvControlInterface(temp_voice.bot),
+            embed=ui.InterfaceEmbed(
                 "Управление объявлением",
                 "📝 - Изменить текст объявления.\n\n🗑️ - Удалить объявление.",
             ),

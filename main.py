@@ -8,29 +8,35 @@ import discord
 from loguru import logger
 from tortoise import Tortoise, run_async
 
-import services
+from src import services
 
 LOG_PATH = "./logs"
 COGS = [
-    "cogs.controller",
-    "cogs.voice",
-    "cogs.slash_commands",
-    "cogs.scheduler",
-    # "cogs.healthcheck",
+    "controller",
+    "voice",
+    "slash_commands",
+    "scheduler",
 ]
 
 logger.remove(0)
-logger.add(
-    sys.stderr,
-    level="DEBUG" if os.getenv("DEBUG", "0") == "1" else "WARNING",
-    enqueue=True,
-)
-logger.add(
-    sys.stdout,
-    level="INFO",
-    filter=lambda record: record["level"].name == "INFO",
-    enqueue=True,
-)
+if os.getenv("DEBUG", "0") == "1":
+    logger.add(
+        sys.stderr,
+        level="WARNING",
+        enqueue=True,
+    )
+    logger.add(
+        sys.stdout,
+        level="INFO",
+        filter=lambda record: record["level"].name == "INFO",
+        enqueue=True,
+    )
+else:
+    logger.add(
+        sys.stdout,
+        level="DEBUG",
+        enqueue=True,
+    )
 
 logger.info("Logger initialized.")
 
@@ -47,7 +53,7 @@ class InterceptHandler(logging.Handler):
         # Find caller from where originated the logged message.
         frame, depth = inspect.currentframe(), 0
         while frame and (
-            depth == 0 or frame.f_code.co_filename == logging.__file__
+                depth == 0 or frame.f_code.co_filename == logging.__file__
         ):
             frame = frame.f_back
             depth += 1
@@ -59,7 +65,6 @@ class InterceptHandler(logging.Handler):
 
 discord.utils.setup_logging(handler=InterceptHandler())
 
-
 bot_intents = discord.Intents.default()
 bot_intents.members = True
 bot_intents.guild_reactions = True
@@ -67,7 +72,7 @@ bot_intents.messages = True
 bot_intents.message_content = True
 bot_intents.guild_messages = True
 
-bot = services.PartySysBot(
+bot = services.Bot(
     command_prefix="n.",
     intents=bot_intents,
     activity=discord.CustomActivity(name="Работает в тестовом режиме."),
@@ -82,20 +87,21 @@ async def on_ready():
 
 
 async def main():
+    # Initialize Tortoise
+    await Tortoise.init(
+        db_url=f'mysql://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}'
+               f'@{os.getenv("DB_HOST")}:3306/{os.getenv("DB_NAME")}',
+        modules={"models": ["src.models"]}
+    )
+    await Tortoise.generate_schemas()
+
     async with bot:
         for extension in COGS:
             try:
-                await bot.load_extension(extension)
+                await bot.load_extension(f'src.cogs.{extension}')
             except Exception as e:
                 logging.error(e)
         await bot.start(os.getenv("DISCORD_TOKEN"))
-
-        # Initialize Tortoise
-        await Tortoise.init(
-            db_url=f'mysql://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}'
-            f'@{os.getenv("DB_HOST")}:3306/{os.getenv("DB_NAME")}',
-            modules={"models": ["partysys.models"]},
-        )
 
 
 if os.getenv("DEBUG", "0") == "0":

@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import logging
-from os import getenv
-
-import dbutils.steady_db
-import pymysql
 from discord.ext import commands
 
-import services
+from src import services
 
 
 class PartySysBot(
@@ -15,19 +10,6 @@ class PartySysBot(
 ):  # Use commands.AutoShardedBot if you have more than 1k guilds
     def __init__(self, command_prefix, *, intents, **options):
         super().__init__(command_prefix, intents=intents, **options)
-        con = dbutils.steady_db.connect(
-            creator=pymysql,  # the rest keyword arguments belong to pymysql
-            host=getenv("DB_HOST"),
-            user=getenv("DB_USER"),
-            password=getenv("DB_PASSWORD"),
-            database=getenv("DB_NAME"),
-            autocommit=True,
-            charset="utf8mb4",
-            cursorclass=pymysql.cursors.DictCursor,
-        )
-        with con:
-            logging.info(f'Connected to {getenv("DB_NAME")}')
-            self.cur = con.cursor()
 
         self.servers: dict[int, services.ServerTempVoices] = {}
 

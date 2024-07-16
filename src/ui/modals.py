@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import discord
 
-import services.bot_class
-import services.errors
-from services.base_classes import BaseModal
-from services.embeds import SuccessEmbed
+import src.services.errors
+from src.services.base_classes import BaseModal
+from src.ui.embeds import SuccessEmbed
 
 
 # noinspection PyUnresolvedReferences
 class LimitModal(BaseModal):
-    def __init__(self, bot: services.bot_class.PartySysBot, current_limit: int):
+    def __init__(self, bot: src.services.bot_class.PartySysBot,
+                 current_limit: int):
         super().__init__(
             title="Изменить лимит пользователей", custom_id="limit:modal"
         )
@@ -50,20 +50,21 @@ class LimitModal(BaseModal):
                             ephemeral=True,
                         )
                     except ValueError as e:
-                        raise services.errors.NumbersOnlyError from e
+                        raise src.services.errors.NumbersOnlyError from e
             else:
-                raise services.errors.UserNoTempChannelsError
+                raise src.services.errors.UserNoTempChannelsError
         else:
-            raise services.errors.BotNotConfiguredError
+            raise src.services.errors.BotNotConfiguredError
 
 
 # noinspection PyUnresolvedReferences
 class RenameModal(BaseModal):
-    def __init__(self, bot: services.bot_class.PartySysBot, current_name: str):
+    def __init__(self, bot: src.services.bot_class.PartySysBot,
+                 current_name: str):
         super().__init__(
             title="Изменить название канала", custom_id="rename:modal"
         )
-        self.bot: services.bot_class.PartySysBot = bot
+        self.bot: src.services.bot_class.PartySysBot = bot
         self.text_inp = discord.ui.TextInput(
             label="Название канала",
             style=discord.TextStyle.short,
@@ -86,6 +87,6 @@ class RenameModal(BaseModal):
                     ephemeral=True,
                 )
             else:
-                raise services.errors.UserNoTempChannelsError
+                raise src.services.errors.UserNoTempChannelsError
         else:
-            raise services.errors.BotNotConfiguredError
+            raise src.services.errors.BotNotConfiguredError

@@ -20,15 +20,6 @@ class UnknownDisError(UserActionError):
         )
 
 
-class UnknownError(UserActionError):
-    def __init__(self):
-        super().__init__(
-            "Произошла неизвестная ошибка. Попробуйте снова."
-            "\n*Если ошибка повторяется - обратитесь в "
-            "тех.поддержку бота.*"
-        )
-
-
 class UserNoTempChannelsError(UserActionError):
     def __init__(self):
         super().__init__(
@@ -58,19 +49,9 @@ class UserAlreadyOwnerError(UserActionError):
         )
 
 
-class UserAlreadyBannedError(UserActionError):
-    def __init__(self):
-        super().__init__("Пользователь уже в бане :)")
-
-
 class UserNotBannedError(UserActionError):
     def __init__(self):
         super().__init__("Пользователь не в бане.")
-
-
-class UserBanLimitError(UserActionError):
-    def __init__(self):
-        super().__init__("Вы исчерпали лимит в 25 банов!")
 
 
 class NumbersOnlyError(UserActionError):

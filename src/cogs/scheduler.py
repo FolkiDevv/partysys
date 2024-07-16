@@ -2,11 +2,11 @@ from datetime import datetime
 
 from discord.ext import commands, tasks
 
-from services.bot_class import PartySysBot
+from src import services
 
 
 class Scheduler(commands.Cog):
-    def __init__(self, bot: PartySysBot):
+    def __init__(self, bot: services.Bot):
         self.bot = bot
 
     @tasks.loop(minutes=1.0)
@@ -14,9 +14,9 @@ class Scheduler(commands.Cog):
         for server in self.bot.servers.copy().values():
             for temp_voice in server.all_channels().values():
                 if (
-                    temp_voice.adv
-                    and temp_voice.adv.delete_after
-                    and datetime.now() >= temp_voice.adv.delete_after
+                        temp_voice.adv
+                        and temp_voice.adv.delete_after
+                        and datetime.now() >= temp_voice.adv.delete_after
                 ):
                     await temp_voice.delete_adv()
 
@@ -25,8 +25,8 @@ class Scheduler(commands.Cog):
         for server in self.bot.servers.copy().values():
             for temp_voice in list(server.all_channels().values()):
                 if (
-                    temp_voice.reminder
-                    and datetime.now() >= temp_voice.reminder
+                        temp_voice.reminder
+                        and datetime.now() >= temp_voice.reminder
                 ):
                     await temp_voice.send_reminder()
 
@@ -51,5 +51,5 @@ class Scheduler(commands.Cog):
             self.reminder_sender.cancel()
 
 
-async def setup(bot: PartySysBot):
+async def setup(bot: services.Bot) -> None:
     await bot.add_cog(Scheduler(bot))
