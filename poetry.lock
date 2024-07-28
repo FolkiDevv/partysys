@@ -857,13 +857,13 @@ files = [
 
 [[package]]
 name = "pyright"
-version = "1.1.371"
+version = "1.1.373"
 description = "Command line wrapper for pyright"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pyright-1.1.371-py3-none-any.whl", hash = "sha256:cce52e42ff73943243e7e5e24f2a59dee81b97d99f4e3cf97370b27e8a1858cd"},
-    {file = "pyright-1.1.371.tar.gz", hash = "sha256:777b508b92dda2db476214c400ce043aad8d8f3dd0e10d284c96e79f298308b5"},
+    {file = "pyright-1.1.373-py3-none-any.whl", hash = "sha256:b805413227f2c209f27b14b55da27fe5e9fb84129c9f1eb27708a5d12f6f000e"},
+    {file = "pyright-1.1.373.tar.gz", hash = "sha256:f41bcfc8b9d1802b09921a394d6ae1ce19694957b628bc657629688daf8a83ff"},
 ]
 
 [package.dependencies]
@@ -933,13 +933,13 @@ dev = ["mypy (==1.4.1)", "pip-tools (>=6.13.0,<7.0.0)", "pytest (>=7.3.1,<8.0.0)
 
 [[package]]
 name = "sentry-sdk"
-version = "1.45.0"
+version = "1.45.1"
 description = "Python client for Sentry (https://sentry.io)"
 optional = false
 python-versions = "*"
 files = [
-    {file = "sentry-sdk-1.45.0.tar.gz", hash = "sha256:509aa9678c0512344ca886281766c2e538682f8acfa50fd8d405f8c417ad0625"},
-    {file = "sentry_sdk-1.45.0-py2.py3-none-any.whl", hash = "sha256:1ce29e30240cc289a027011103a8c83885b15ef2f316a60bcc7c5300afa144f1"},
+    {file = "sentry_sdk-1.45.1-py2.py3-none-any.whl", hash = "sha256:608887855ccfe39032bfd03936e3a1c4f4fc99b3a4ac49ced54a4220de61c9c1"},
+    {file = "sentry_sdk-1.45.1.tar.gz", hash = "sha256:a16c997c0f4e3df63c0fc5e4207ccb1ab37900433e0f72fef88315d317829a26"},
 ]
 
 [package.dependencies]
@@ -980,13 +980,13 @@ tornado = ["tornado (>=5)"]
 
 [[package]]
 name = "tortoise-orm"
-version = "0.21.4"
+version = "0.21.5"
 description = "Easy async ORM for python, built with relations in mind"
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "tortoise_orm-0.21.4-py3-none-any.whl", hash = "sha256:2ade41ae1d9c7279adb9c69199357cb1dce9380c4c880c32713f99c1e057ce5f"},
-    {file = "tortoise_orm-0.21.4.tar.gz", hash = "sha256:1d6a4ed450ac831e5f520c369c6ba8e0ff947c8e34b4edd40ba8a94c4efcd0aa"},
+    {file = "tortoise_orm-0.21.5-py3-none-any.whl", hash = "sha256:a9657568b31c5ee24c0596d531fd51210c75855551c4c18b376e8a24f33b3e1d"},
+    {file = "tortoise_orm-0.21.5.tar.gz", hash = "sha256:cccd23178380a325890e10742c74250722e92e4aa088fd7ebf863c3475a4f1ef"},
 ]
 
 [package.dependencies]

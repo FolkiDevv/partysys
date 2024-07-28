@@ -2,23 +2,17 @@
 # First stage: builder
 FROM python:3.12-slim-bullseye as builder
 
-ENV PYTHONFAULTHANDLER=1 \
-  PYTHONUNBUFFERED=1 \
-  PYTHONHASHSEED=random \
-  PIP_NO_CACHE_DIR=off \
-  PIP_DISABLE_PIP_VERSION_CHECK=on \
+ENV PIP_NO_CACHE_DIR=1 \
+  PIP_DISABLE_PIP_VERSION_CHECK=1 \
   PIP_DEFAULT_TIMEOUT=100 \
-  # Poetry's configuration:
-  POETRY_NO_INTERACTION=1 \
-  POETRY_VIRTUALENVS_CREATE=false \
-  POETRY_CACHE_DIR='/var/cache/pypoetry' \
-  POETRY_HOME='/usr/local'
+  PIP_ROOT_USER_ACTION=ignore
 
-# Install Poetry
-RUN python -m pip install --no-cache-dir poetry \
-  # Cleaning cache:
-  && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-  && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y build-essential \
+    # Install Poetry
+    && pip install poetry \
+    # Cleaning cache:
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
 WORKDIR /app
@@ -26,8 +20,10 @@ WORKDIR /app
 # Copy only requirements to cache them in docker layer
 COPY poetry.lock pyproject.toml /app/
 
-# Install dependencies
-RUN poetry install --only=main --no-interaction --no-ansi
+# Configure Poetry and Install dependencies
+RUN poetry config virtualenvs.create true &&  \
+    poetry config virtualenvs.in-project true &&  \
+    poetry install --only main --no-interaction --no-ansi
 
 # Copy the rest of the code
 COPY . /app
@@ -37,8 +33,7 @@ FROM python:3.12-slim-bullseye as runtime
 
 # Create app user and group
 RUN addgroup --gid 1001 --system app && \
-    adduser --no-create-home --shell /bin/false  \
-    --disabled-password --uid 1001 --system --group app
+    adduser --no-create-home --shell /bin/false --disabled-password --uid 1001 --system --group app
 
 # Set work directory
 WORKDIR /app
@@ -58,7 +53,7 @@ ENV PYTHONFAULTHANDLER=1 \
   PIP_NO_CACHE_DIR=1 \
   PIP_DISABLE_PIP_VERSION_CHECK=1 \
   PIP_DEFAULT_TIMEOUT=100 \
-  PIP_ROOT_USER_ACTION=ignore
+  PIP_ROOT_USER_ACTION=ignore \
+  PATH="/app/.venv/bin:$PATH"
 
-# Set the entrypoint
 ENTRYPOINT ["python", "-m", "main"]
