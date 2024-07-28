@@ -29,7 +29,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          images: ghcr.io/${{ env.IMAGE_NAME }}
 
       # Login to docker
       # This can be used for both Docker Hub and
@@ -45,7 +45,7 @@ jobs:
 
       # Build the docker image and push it.
       - name: Build and push image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
