@@ -2,13 +2,24 @@ from __future__ import annotations
 
 import discord
 
-from src import services, ui
-from src.models import Bans
+from src import utils
+from src.models import TCBans
 from src.services import errors
 
+from .adv import AdvInterface
+from .embeds import ErrorEmbed, InterfaceEmbed, SuccessEmbed, WarningEmbed
+from .modals import LimitModal, RenameModal
+from .views import (
+    BanInterface,
+    GetAccessInterface,
+    PrivacyInterface,
+    TakeAccessInterface,
+    UnbanInterface,
+)
 
-class ControlInterface(ui.AdvInterface):
-    def __init__(self, bot: services.Bot):
+
+class ControlInterface(AdvInterface):
+    def __init__(self, bot: utils.BotABC):
         super().__init__(bot)
         self.bot = bot
 
@@ -26,15 +37,15 @@ class ControlInterface(ui.AdvInterface):
         custom_id="rename",
         row=0,
     )
-    @ui.AdvInterface.check_decorator
+    @AdvInterface.check_decorator
     async def rename(
             self,
             interaction: discord.Interaction,
-            temp_voice: services.TempVoice,
+            temp_voice: utils.TempVoiceABC,
             *_,
     ):
         await interaction.response.send_modal(
-            ui.RenameModal(self.bot, temp_voice.channel.name)
+            RenameModal(self.bot, temp_voice.channel.name)
         )
 
     @discord.ui.button(
@@ -42,13 +53,13 @@ class ControlInterface(ui.AdvInterface):
         custom_id="limit",
         row=0,
     )
-    @ui.AdvInterface.check_decorator
+    @AdvInterface.check_decorator
     async def limit(
             self, interaction: discord.Interaction,
-            temp_voice: services.TempVoice, *_
+            temp_voice: utils.TempVoiceABC, *_
     ):
         await interaction.response.send_modal(
-            ui.LimitModal(self.bot, temp_voice.channel.user_limit)
+            LimitModal(self.bot, temp_voice.channel.user_limit)
         )
 
     @discord.ui.button(
@@ -56,15 +67,15 @@ class ControlInterface(ui.AdvInterface):
         custom_id="privacy",
         row=0,
     )
-    @ui.AdvInterface.check_decorator
+    @AdvInterface.check_decorator
     async def privacy(
             self, interaction: discord.Interaction,
-            temp_voice: services.TempVoice, *_
+            temp_voice: utils.TempVoiceABC, *_
     ):
         await interaction.response.send_message(
             ephemeral=True,
-            view=ui.PrivacyInterface(self.bot, temp_voice.privacy),
-            embed=ui.InterfaceEmbed(
+            view=PrivacyInterface(self.bot, temp_voice.privacy),
+            embed=InterfaceEmbed(
                 title="Изменение приватности",
                 text="🔓 Публичный - все пользователи могут "
                      "присоединяться/видеть ваш канал."
@@ -85,12 +96,12 @@ class ControlInterface(ui.AdvInterface):
         custom_id="get_access",
         row=1,
     )
-    @ui.AdvInterface.check_decorator
+    @AdvInterface.check_decorator
     async def get_access(self, interaction: discord.Interaction, *_):
         await interaction.response.send_message(
             ephemeral=True,
-            view=ui.GetAccessInterface(self.bot),
-            embed=ui.InterfaceEmbed(
+            view=GetAccessInterface(self.bot),
+            embed=InterfaceEmbed(
                 title="Разрешить просматривать/подключаться к каналу",
                 text="Выбранные пользователи смогут "
                      "присоединяться/просматривать ваш канал"
@@ -104,12 +115,12 @@ class ControlInterface(ui.AdvInterface):
         custom_id="take_access",
         row=1,
     )
-    @ui.AdvInterface.check_decorator
+    @AdvInterface.check_decorator
     async def take_access(self, interaction: discord.Interaction, *_):
         await interaction.response.send_message(
             ephemeral=True,
-            view=ui.TakeAccessInterface(self.bot),
-            embed=ui.InterfaceEmbed(
+            view=TakeAccessInterface(self.bot),
+            embed=InterfaceEmbed(
                 title="Запретить просматривать/подключаться к каналу",
                 text="Выбранные пользователи НЕ смогут "
                      "присоединяться/просматривать ваш канал"
@@ -121,38 +132,28 @@ class ControlInterface(ui.AdvInterface):
         emoji=discord.PartialEmoji(name="kick", id=1174291365300011079),
         custom_id="kick",
         row=1,
+        disabled=True,
     )
-    @ui.AdvInterface.check_decorator
-    async def kick(
-            self, interaction: discord.Interaction,
-            temp_voice: services.TempVoice, *_
-    ):
-        if len(temp_voice.channel.members) > 1:
-            await interaction.response.send_message(
-                ephemeral=True,
-                view=ui.KickInterface(
-                    self.bot, temp_voice.channel.members, temp_voice.owner
-                ),
-                embed=ui.InterfaceEmbed(
-                    title="Выгнать пользователя",
-                    text="Выбранный пользователь будет отключен от голосового "
-                         "канала.",
-                ),
+    @AdvInterface.check_decorator
+    async def kick(self, interaction: discord.Interaction, *_):
+        await interaction.response.send_message(
+            ephemeral=True,
+            embed=WarningEmbed(
+                "Воспользуйтесь встроенным функционалом Discord:"
+                "\n**Нажмите ПКМ по пользователю в Вашем канале -> Отключить**"
             )
-        else:
-            raise errors.NoUsersInChannelError
+        )
 
     @discord.ui.button(
         emoji=discord.PartialEmoji(name="ban", id=1174291351106506792),
         custom_id="ban",
         row=1,
     )
-    @ui.AdvInterface.check_decorator
     async def ban(self, interaction: discord.Interaction, *_):
         await interaction.response.send_message(
             ephemeral=True,
-            view=ui.BanInterface(self.bot),
-            embed=ui.InterfaceEmbed(
+            view=BanInterface(self.bot),
+            embed=InterfaceEmbed(
                 title="Забанить пользователя",
                 text="Выбранный пользователь будет отключен от текущего "
                      "голосового канала"
@@ -166,24 +167,23 @@ class ControlInterface(ui.AdvInterface):
         custom_id="unban",
         row=2,
     )
-    @ui.AdvInterface.check_decorator
     async def unban(
             self, interaction: discord.Interaction,
-            temp_voice: services.TempVoice, *_
+            temp_voice: utils.TempVoiceABC, *_
     ):
-        if ban_list_raw := await Bans.filter(
+        if ban_list_raw := await TCBans.filter(
                 server=temp_voice.server_id,
                 dis_creator_id=temp_voice.creator.id,
                 banned=True,
         ):
             await interaction.response.send_message(
                 ephemeral=True,
-                view=ui.UnbanInterface(
+                view=UnbanInterface(
                     self.bot,
                     interaction.guild,
                     ban_list_raw
                 ),
-                embed=ui.InterfaceEmbed(
+                embed=InterfaceEmbed(
                     title="Разбанить пользователя",
                     text="Выбранный пользователь будет убран с вашего "
                          "бан-листа.",
@@ -192,7 +192,7 @@ class ControlInterface(ui.AdvInterface):
         else:
             await interaction.response.send_message(
                 ephemeral=True,
-                embed=ui.ErrorEmbed(
+                embed=ErrorEmbed(
                     "Список заблокированных пользователей пуст."
                     "\nНе бойтесь его пополнить, если потребуется :)"
                 ),
@@ -204,8 +204,7 @@ class ControlInterface(ui.AdvInterface):
         row=2,
     )
     async def return_owner(self, interaction: discord.Interaction, *_):
-        server = self.bot.server(interaction.guild_id)
-        if server:
+        if server := self.bot.server(interaction.guild_id):
             temp_voice = server.get_user_transferred_channel(
                 interaction.user.id
             )
@@ -220,7 +219,7 @@ class ControlInterface(ui.AdvInterface):
                 await temp_voice.change_owner(interaction.user)
                 await interaction.response.send_message(
                     ephemeral=True,
-                    embed=ui.SuccessEmbed(
+                    embed=SuccessEmbed(
                         "Вам возвращены права на управления каналом."
                     ),
                 )
@@ -236,12 +235,11 @@ class ControlInterface(ui.AdvInterface):
         custom_id="transfer_owner",
         row=2,
     )
-    @ui.AdvInterface.check_decorator
+    @AdvInterface.check_decorator
     async def transfer_owner(self, interaction: discord.Interaction, *_):
         await interaction.response.send_message(
             ephemeral=True,
-            view=ui.TransferOwnerInterface(self.bot),
-            embed=ui.InterfaceEmbed(
+            embed=InterfaceEmbed(
                 title="Передать права на управление каналом",
                 text="Выбранный пользователь получит ваши права на "
                      "управление каналом "
@@ -255,10 +253,10 @@ class ControlInterface(ui.AdvInterface):
         custom_id="del_channel",
         row=2,
     )
-    @ui.AdvInterface.check_decorator
+    @AdvInterface.check_decorator
     async def del_channel(
             self, interaction: discord.Interaction,
-            temp_voice: services.TempVoice, *_
+            temp_voice: utils.TempVoiceABC, *_
     ):
         await self.bot.server(interaction.guild_id).del_channel(
             temp_voice.channel.id

@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 import discord
-import sentry_sdk
 from discord import Interaction
 from discord.ui import View
+from sentry_sdk import metrics
 
-from src.models import Bans
-from src.services import Bot, errors
-from src.services.base_classes import BaseView
-from src.ui.embeds import SuccessEmbed
-from src.utils.enums import Privacy
+from src import utils
+from src.models import TCBans
+from src.services import errors
+
+from .base import BaseView
+from .embeds import SuccessEmbed
 
 
 class KickInterface(BaseView):
     def __init__(
             self,
-            bot: Bot,
+            bot: utils.BotABC,
             users: list[discord.Member],
             owner: discord.Member,
     ):
@@ -50,7 +51,7 @@ class KickInterface(BaseView):
             ),
         )
 
-        sentry_sdk.metrics.incr(
+        metrics.incr(
             "temp_channel_user_kick",
             1,
             tags={"server": interaction.guild_id},
@@ -60,7 +61,7 @@ class KickInterface(BaseView):
 
 
 class TransferOwnerInterface(BaseView):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: utils.BotABC):
         super().__init__(bot)
 
     @discord.ui.select(
@@ -91,7 +92,7 @@ class TransferOwnerInterface(BaseView):
                     f"права на управления данным каналом."
         )
 
-        sentry_sdk.metrics.incr(
+        metrics.incr(
             "temp_channel_change_owner",
             1,
             tags={"server": interaction.guild_id},
@@ -101,7 +102,7 @@ class TransferOwnerInterface(BaseView):
 
 
 class BanInterface(BaseView):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: utils.BotABC):
         super().__init__(bot)
 
     @discord.ui.select(
@@ -126,7 +127,7 @@ class BanInterface(BaseView):
             view=None,
         )
 
-        sentry_sdk.metrics.incr(
+        metrics.incr(
             "temp_channel_user_ban",
             1,
             tags={"server": interaction.guild_id},
@@ -138,9 +139,9 @@ class BanInterface(BaseView):
 class UnbanInterface(BaseView):
     def __init__(
             self,
-            bot: Bot,
+            bot: utils.BotABC,
             guild: discord.Guild,
-            ban_list_raw: list[Bans],
+            ban_list_raw: list[TCBans],
     ):
         super().__init__(bot)
 
@@ -184,7 +185,7 @@ class UnbanInterface(BaseView):
                 "повторяется - обратитесь в тех.поддержку бота."
             )
 
-        sentry_sdk.metrics.incr(
+        metrics.incr(
             "temp_channel_user_unban",
             1,
             tags={"server": interaction.guild_id},
@@ -194,7 +195,7 @@ class UnbanInterface(BaseView):
 
 
 class TakeAccessInterface(BaseView):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: utils.BotABC):
         super().__init__(bot)
 
     @discord.ui.select(
@@ -227,7 +228,7 @@ class TakeAccessInterface(BaseView):
             view=None,
         )
 
-        sentry_sdk.metrics.incr(
+        metrics.incr(
             "temp_channel_user_restrict_access",
             1,
             tags={"server": interaction.guild_id},
@@ -237,7 +238,7 @@ class TakeAccessInterface(BaseView):
 
 
 class GetAccessInterface(BaseView):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: utils.BotABC):
         super().__init__(bot)
 
     @discord.ui.select(
@@ -266,7 +267,7 @@ class GetAccessInterface(BaseView):
             view=None,
         )
 
-        sentry_sdk.metrics.incr(
+        metrics.incr(
             "temp_channel_user_get_access",
             1,
             tags={"server": interaction.guild_id},
@@ -276,7 +277,7 @@ class GetAccessInterface(BaseView):
 
 
 class PrivacyInterface(BaseView):
-    def __init__(self, bot: Bot, privacy: Privacy):
+    def __init__(self, bot: utils.BotABC, privacy: utils.Privacy):
         super().__init__(bot)
 
         self.select = discord.ui.Select(
@@ -285,7 +286,7 @@ class PrivacyInterface(BaseView):
                     label="Публичный",
                     value="0",
                     emoji="🔓",
-                    default=privacy == Privacy.PUBLIC,
+                    default=privacy == utils.Privacy.PUBLIC,
                     description="Любой желающий сможет присоединиться к вашему "
                                 "каналу.",
                 ),
@@ -293,7 +294,7 @@ class PrivacyInterface(BaseView):
                     label="Закрытый",
                     value="1",
                     emoji="🔒",
-                    default=privacy == Privacy.PRIVATE,
+                    default=privacy == utils.Privacy.PRIVATE,
                     description="Все будут видеть ваш канал, но присоединиться "
                                 "могут только пользователи с разрешением.",
                 ),
@@ -301,7 +302,7 @@ class PrivacyInterface(BaseView):
                     label="Скрытый",
                     value="2",
                     emoji="🔐",
-                    default=privacy == Privacy.HIDDEN,
+                    default=privacy == utils.Privacy.HIDDEN,
                     description='Аналогичен режиму "Закрытый", однако '
                                 "посторонние не смогут видеть данный канал.",
                 ),
@@ -313,7 +314,9 @@ class PrivacyInterface(BaseView):
     async def interaction_check(self, interaction: Interaction, /) -> bool:
         await super().interaction_check(interaction)
 
-        await self.temp_voice.change_privacy(Privacy(self.select.values[0]))
+        await self.temp_voice.change_privacy(
+            utils.Privacy(self.select.values[0])
+        )
         await interaction.response.edit_message(
             embed=SuccessEmbed(
                 f'Режим приватности изменен на: '
@@ -322,13 +325,13 @@ class PrivacyInterface(BaseView):
             view=None,
         )
 
-        sentry_sdk.metrics.incr(
+        metrics.incr(
             "temp_channel_privacy_changed",
             1,
             tags={"server": interaction.guild_id},
         )
 
-        if self.select.values[0] != Privacy.PUBLIC:
+        if self.select.values[0] != utils.Privacy.PUBLIC:
             # Try to delete active adv if privacy changed to closed
             await self.temp_voice.delete_adv()
         return True

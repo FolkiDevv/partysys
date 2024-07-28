@@ -1,16 +1,70 @@
 from __future__ import annotations
 
 import discord
+from sentry_sdk import metrics
 
-import src.services.errors
-from src.services.base_classes import BaseModal
-from src.ui.embeds import SuccessEmbed
+from src import utils
+from src.services import errors
+
+from .base import BaseModal
+from .embeds import SuccessEmbed
+
+
+class AdvModal(BaseModal):
+    def __init__(self, temp_voice: utils.TempVoiceABC):
+        super().__init__(
+            title="Изменить объявление"
+            if temp_voice.adv
+            else "Опубликовать объявление",
+            custom_id="adv:public:modal",
+        )
+        self.temp_voice = temp_voice
+
+        self.text_inp = discord.ui.TextInput(
+            label="Текст объявления",
+            placeholder="Опишите требования к искомым тиммейтам/ваши планы. "
+            "Оставьте пустым, если нечего сказать.",
+            style=discord.TextStyle.long,
+            required=False,
+            max_length=240,
+            custom_id="adv:public:modal:text_input",
+            default=temp_voice.adv.custom_text
+            if temp_voice.adv and len(temp_voice.adv.custom_text)
+            else None,
+        )
+        self.add_item(self.text_inp)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        if self.temp_voice.adv:
+            await self.temp_voice.update_adv(custom_text=self.text_inp.value)
+            await interaction.response.edit_message(
+                view=None,
+                embed=SuccessEmbed("Объявление было отредактировано."),
+            )
+        else:
+            await self.temp_voice.send_adv(custom_text=self.text_inp.value)
+            await interaction.response.send_message(
+                ephemeral=True,
+                embed=SuccessEmbed(
+                    "Объявление было отправлено."
+                    if self.temp_voice.channel.user_limit
+                    else "Объявление было отправлено.\nУ вашего канала нет "
+                    "ограничению по числу пользователей,"
+                    "поэтому объявление будет удалено спустя 2 минуты простоя "
+                    "без изменений."
+                ),
+            )
+
+            metrics.incr(
+                "adv_manual_send",
+                1,
+                tags={"server": self.temp_voice.server_id},
+            )
 
 
 # noinspection PyUnresolvedReferences
 class LimitModal(BaseModal):
-    def __init__(self, bot: src.services.bot_class.PartySysBot,
-                 current_limit: int):
+    def __init__(self, bot: utils.BotABC, current_limit: int):
         super().__init__(
             title="Изменить лимит пользователей", custom_id="limit:modal"
         )
@@ -50,21 +104,20 @@ class LimitModal(BaseModal):
                             ephemeral=True,
                         )
                     except ValueError as e:
-                        raise src.services.errors.NumbersOnlyError from e
+                        raise errors.NumbersOnlyError from e
             else:
-                raise src.services.errors.UserNoTempChannelsError
+                raise errors.UserNoTempChannelsError
         else:
-            raise src.services.errors.BotNotConfiguredError
+            raise errors.BotNotConfiguredError
 
 
 # noinspection PyUnresolvedReferences
 class RenameModal(BaseModal):
-    def __init__(self, bot: src.services.bot_class.PartySysBot,
-                 current_name: str):
+    def __init__(self, bot: utils.BotABC, current_name: str):
         super().__init__(
             title="Изменить название канала", custom_id="rename:modal"
         )
-        self.bot: src.services.bot_class.PartySysBot = bot
+        self.bot = bot
         self.text_inp = discord.ui.TextInput(
             label="Название канала",
             style=discord.TextStyle.short,
@@ -87,6 +140,6 @@ class RenameModal(BaseModal):
                     ephemeral=True,
                 )
             else:
-                raise src.services.errors.UserNoTempChannelsError
+                raise errors.UserNoTempChannelsError
         else:
-            raise src.services.errors.BotNotConfiguredError
+            raise errors.BotNotConfiguredError

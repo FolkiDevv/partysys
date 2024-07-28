@@ -1,85 +1,15 @@
 from __future__ import annotations
 
 import datetime
-from random import sample
 from types import MappingProxyType
 
 import discord
-import sentry_sdk
+from sentry_sdk import metrics
 
-from src import services, ui
-from src.models import Bans, CreatorChannels, Servers, TempChannels
+from src import ui, utils
+from src.models import TCBans, CreatorChannels, Servers, TempChannels
 
-SQUAD_TITLES = (
-    "Альфа",
-    "Омега",
-    "Феникс",
-    "Грифон",
-    "Дракон",
-    "Волк",
-    "Сокол",
-    "Титан",
-    "Легион",
-    "Центурион",
-    "Шторм",
-    "Север",
-    "Молния",
-    "Сталь",
-    "Кобра",
-    "Пантера",
-    "Лев",
-    "Гладиатор",
-    "Викинг",
-    "Спартанец",
-    "Комета",
-    "Буря",
-    "Арктика",
-    "Торнадо",
-    "Ястреб",
-    "Медведь",
-    "Тигр",
-    "Ягуар",
-    "Скорпион",
-    "Марс",
-    "Железо",
-    "Рубин",
-    "Оникс",
-    "Сапфир",
-    "Жемчуг",
-    "Топаз",
-    "Аметист",
-    "Опал",
-    "Агат",
-    "Бриллиант",
-    "Небеса",
-    "Ореол",
-    "Квазар",
-    "Нимб",
-    "Аврора",
-    "Баррикада",
-    "Каратель",
-    "Навигатор",
-    "Пионер",
-    "Квант",
-    "Эклипс",
-    "Галактика",
-    "Импульс",
-    "Метеор",
-    "Нейтрон",
-    "Протон",
-    "Радар",
-    "Сигма",
-    "Циклон",
-    "СБЭУ",
-    "Профессионалов",
-    "BEAR",
-    "USEC",
-    "Скайнет",
-    "Скуфов",
-    "Решал",
-    "LABS",
-    "GIGACHADS",
-)
+from .temp_voice import TempVoice
 
 roman_numbers = {
     "M": 1000,
@@ -107,25 +37,7 @@ def to_roman(number):
     return roman
 
 
-class ServerTempVoices:
-    def __init__(self, bot: services.Bot, guild: discord.Guild):
-        self.bot = bot
-
-        self.server_id: int | None = None  # Local ID
-        self.adv_channel: discord.TextChannel | None = None
-        self.guild = guild
-        self._creator_channels: MappingProxyType[
-            int, CreatorChannels] = MappingProxyType({})  # noqa: E501
-        self._temp_channels: dict[int, services.TempVoice] = {}
-
-        # Random iterator for temp voice random squad name
-        self._random_names = sample(SQUAD_TITLES, len(SQUAD_TITLES))
-        self._random_names_index = 0
-
-        self._last_data_update = datetime.datetime.now()
-
-        self.bot.loop.create_task(self._get_settings_from_db(guild.id))
-
+class Server(utils.ServerABC):
     def _get_random_squad_name(self) -> str:
         name = self._random_names[self._random_names_index]
         if self._random_names_index >= len(self._random_names) - 1:
@@ -151,12 +63,12 @@ class ServerTempVoices:
              await CreatorChannels.filter(server=self.server_id)}
         )
 
-    async def update_server_data(self) -> None:
+    async def update_server_data(self):
         if (datetime.datetime.now() - self._last_data_update
                 >= datetime.timedelta(seconds=10)):
             await self._get_settings_from_db(self.guild.id)
 
-    async def del_channel(self, channel_id: int) -> None:
+    async def del_channel(self, channel_id):
         if channel_id in self._temp_channels:
             try:
                 await self._temp_channels[channel_id].delete()
@@ -168,9 +80,7 @@ class ServerTempVoices:
                        .filter(dis_id=channel_id)
                        .update(deleted=True))
 
-    async def create_channel(
-            self, member: discord.Member, creator_channel_id: int
-    ) -> discord.VoiceChannel | None:
+    async def create_channel(self, member, creator_channel_id):
         if creator_channel_id not in self._creator_channels:
             return None
 
@@ -198,7 +108,7 @@ class ServerTempVoices:
             dis_owner_id=member.id
         )
 
-        self._temp_channels[temp_voice.id] = services.TempVoice(
+        self._temp_channels[temp_voice.id] = TempVoice(
             self.bot, temp_voice, member, self.server_id
         )
 
@@ -221,7 +131,7 @@ class ServerTempVoices:
         }
 
         # Next get owner ban list and restore them to the new channel
-        for raw_ban in await Bans.filter(
+        for raw_ban in await TCBans.filter(
                 server=self.server_id,
                 dis_creator_id=member.id,
                 banned=True
@@ -249,7 +159,7 @@ class ServerTempVoices:
             await self.del_channel(temp_voice.id)
             return None
 
-        sentry_sdk.metrics.incr(
+        metrics.incr(
             "temp_channel_created",
             1,
             tags={"server": self.guild.id},
@@ -257,15 +167,13 @@ class ServerTempVoices:
 
         return temp_voice if temp_voice.id in self._temp_channels else None
 
-    def is_creator_channel(self, channel_id: int) -> bool:
+    def is_creator_channel(self, channel_id):
         return channel_id in self._creator_channels
 
-    def is_temp_channel(self, channel_id: int) -> bool:
+    def is_temp_channel(self, channel_id):
         return channel_id in self._temp_channels
 
-    def get_user_channel(
-            self, member: discord.Member, interaction_channel_id: int = None
-    ) -> services.TempVoice | False:
+    def get_user_channel(self, member, interaction_channel_id=None):
         if (
                 interaction_channel_id
                 and member.guild_permissions.administrator
@@ -278,9 +186,7 @@ class ServerTempVoices:
                 return temp_channel
         return False
 
-    def get_user_transferred_channel(
-            self, member_id: int
-    ) -> services.TempVoice | False:
+    def get_user_transferred_channel(self, member_id):
         """
         Try to find user temp voice when user transfer his owner
         :param member_id:
@@ -294,7 +200,7 @@ class ServerTempVoices:
     def get_creator_channels_ids(self):
         return self._creator_channels.keys()  # noqa
 
-    def channel(self, channel_id: int) -> services.TempVoice | None:
+    def channel(self, channel_id):
         if channel_id not in self._temp_channels:
             return None
 
@@ -305,11 +211,11 @@ class ServerTempVoices:
 
     async def restore_channel(
             self,
-            channel: discord.VoiceChannel,
-            owner_id: int,
-            creator_id: int,
-            adv_msg_id: int,
-    ) -> services.TempVoice:
+            channel,
+            owner_id,
+            creator_id,
+            adv_msg_id,
+    ):
         owner = self.guild.get_member(owner_id) or self.guild.get_member(
             self.bot.user.id
         )
@@ -319,7 +225,7 @@ class ServerTempVoices:
             else self.guild.get_member(creator_id)
         )
 
-        self._temp_channels[channel.id] = services.TempVoice(
+        self._temp_channels[channel.id] = TempVoice(
             self.bot, channel, owner, self.server_id, creator=creator
         )
         if adv_msg_id:

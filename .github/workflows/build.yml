@@ -1,9 +1,9 @@
-name: Build API and Deploy
+name: Build and Push
 
 on:
   push:
     branches:
-      - "master"
+      - "beta"
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -53,24 +53,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-  # Name of the job is "deploy"
-  deploy:
-    needs: build-push
-    runs-on: ubuntu-latest
-    steps:
-      # SSH into the server
-      - name: SSH into server
-        uses: appleboy/ssh-action@master
-        with:
-          # The server IP of our VPS from DigitalOcean
-          # or any other provider. This is again
-          # passed in as a secret.
-          host: ${{ secrets.SERVER_IP }}
-          # Username of the user sshing into the server
-          username: ${{ secrets.SERVER_USERNAME }}
-          # The private ssh key in order to get access
-          key: ${{ secrets.KEY }}
-          passphrase: ${{ secrets.PASSPHRASE }}
-#          script: docker pull ghcr.io/${{ github.repository }}:latest && docker run ghcr.io/${{ github.repository }}:latest
-          script: (echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin) && cd /usr/local/src/partysys_auto && docker compose pull && docker compose down && docker compose up --force-recreate --build -d && docker image prune -f && docker logout ghcr.io

@@ -1,3 +1,4 @@
-from .bot_class import PartySysBot as Bot
-from .server_temp_voices import ServerTempVoices
+from .base import BaseCog
+from .bot_class import PartySysBot
+from .server_temp_voices import Server
 from .temp_voice import TempVoice

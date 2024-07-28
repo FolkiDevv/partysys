@@ -1,6 +1,5 @@
 import inspect
 import logging
-import logging.handlers
 import os
 import sys
 
@@ -8,15 +7,8 @@ import discord
 from loguru import logger
 from tortoise import Tortoise, run_async
 
+from config import CONF
 from src import services
-
-LOG_PATH = "./logs"
-COGS = [
-    "controller",
-    "voice",
-    "slash_commands",
-    "scheduler",
-]
 
 logger.remove(0)
 if os.getenv("DEBUG", "0") == "1":
@@ -72,7 +64,7 @@ bot_intents.messages = True
 bot_intents.message_content = True
 bot_intents.guild_messages = True
 
-bot = services.Bot(
+bot = services.PartySysBot(
     command_prefix="n.",
     intents=bot_intents,
     activity=discord.CustomActivity(name="Работает в тестовом режиме."),
@@ -82,7 +74,7 @@ bot.remove_command("help")
 
 @bot.event
 async def on_ready():
-    logging.info(f"Logged in as {bot.user.name} {bot.user.id}.")
+    logger.info(f"Logged in as {bot.user.name} {bot.user.id}.")
     await bot.tree.sync(guild=discord.Object(os.getenv("DEV_SERVER_ID")))
 
 
@@ -96,11 +88,11 @@ async def main():
     await Tortoise.generate_schemas()
 
     async with bot:
-        for extension in COGS:
+        for extension in CONF.get("cogs", []):
             try:
                 await bot.load_extension(f'src.cogs.{extension}')
             except Exception as e:
-                logging.error(e)
+                logger.error(e)
         await bot.start(os.getenv("DISCORD_TOKEN"))
 
 

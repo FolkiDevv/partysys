@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from discord import Embed
 
 
@@ -18,6 +20,24 @@ class SuccessEmbed(Embed):
         super().__init__(
             title="<:ok:1177313861368545392> Успех.",
             color=0x57F287,
+            description=text,
+        )
+
+
+class WarningEmbed(Embed):
+    def __init__(self, text: str):
+        super().__init__(
+            title="<:warning:1177313863906103358> Внимание!",
+            color=0xFED602,
+            description=text,
+        )
+
+
+class InfoEmbed(Embed):
+    def __init__(self, title: str, text: str):
+        super().__init__(
+            title=f"<:info:1177314633124696165> {title}",
+            color=0x6B89B7,
             description=text,
         )
 

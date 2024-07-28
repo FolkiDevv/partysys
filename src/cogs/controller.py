@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
 import os
 import traceback
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 
 from src import services, ui
 from src.services import errors
@@ -12,9 +13,9 @@ from src.services import errors
 
 # TODO: сделать единую обработку ошибок
 # noinspection PyUnresolvedReferences
-class Controller(commands.Cog):
-    def __init__(self, bot: services.Bot):
-        self.bot = bot
+class Controller(services.BaseCog):
+    def __init__(self, bot):
+        super().__init__(bot)
 
     @staticmethod
     async def on_application_command_error(

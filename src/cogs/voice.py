@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 import discord
@@ -8,9 +10,10 @@ from src import services
 from src.models import TempChannels
 
 
-class Voice(commands.Cog):
-    def __init__(self, bot: services.Bot):
-        self.bot = bot
+class Voice(services.BaseCog):
+    def __init__(self, bot):
+        super().__init__(bot)
+
         self.channels_restored = False
 
     @commands.Cog.listener()
@@ -110,5 +113,5 @@ class Voice(commands.Cog):
             logging.info("All channels restored!")
 
 
-async def setup(bot: services.Bot):
+async def setup(bot):
     await bot.add_cog(Voice(bot))

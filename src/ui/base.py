@@ -5,16 +5,18 @@ import logging
 import discord
 from discord import Interaction
 
-from src import services, ui
+from src import utils
 from src.services import errors
+
+from .embeds import ErrorEmbed
 
 
 class BaseView(discord.ui.View):
-    def __init__(self, bot: services.Bot, *args, **kwargs):
+    def __init__(self, bot: utils.BotABC, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bot = bot
-        self.server: services.ServerTempVoices | None = None
-        self.temp_voice: services.TempVoice | None = None
+        self.server: utils.ServerABC | None = None
+        self.temp_voice: utils.TempVoiceABC | None = None
 
     async def interaction_check(self, interaction: Interaction) -> bool:
         self.server = self.bot.server(interaction.guild_id)
@@ -38,7 +40,7 @@ class BaseView(discord.ui.View):
     ):
         error = getattr(error, "original", error)
 
-        embed = ui.ErrorEmbed()
+        embed = ErrorEmbed()
         try:
             if isinstance(error, discord.NotFound):
                 embed.description = (
@@ -66,7 +68,7 @@ class BaseModal(discord.ui.Modal):
     async def on_error(self, interaction: Interaction, error: Exception, /):
         error = getattr(error, "original", error)
 
-        embed = ui.ErrorEmbed()
+        embed = ErrorEmbed()
         try:
             if isinstance(error, discord.NotFound):
                 embed.description = (

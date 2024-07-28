@@ -5,35 +5,13 @@ from datetime import datetime, timedelta
 
 import discord
 
-from src import services, ui
-from src.models import Bans, TempChannels
+from src import ui, utils
+from src.models import TCBans, TempChannels
 from src.services import errors
-from src.utils import Privacy
 
 
-class TempVoice:
-    def __init__(
-            self,
-            bot: services.Bot,
-            channel: discord.VoiceChannel,
-            owner: discord.Member,
-            server_id: int,
-            creator: discord.Member | None = None,
-    ):
-        self.bot = bot
-        self.channel = channel
-        self.creator = creator if creator else owner
-        self.owner = owner
-        self.adv = ui.Adv()
-
-        self.reminder: datetime | None | False = None
-
-        self.privacy: Privacy = Privacy.PUBLIC
-        self._invite_url: str | None = None  # Invite link on this channel
-        self.server_id = server_id  # Local server id in DB
-
-    @property
-    async def invite_url(self) -> str:
+class TempVoice(utils.TempVoiceABC):
+    async def invite_url(self):
         if not self._invite_url:
             for inv in await self.channel.invites():
                 if inv.inviter.id == self.bot.user.id:
@@ -54,7 +32,7 @@ class TempVoice:
             self.channel = new_state
 
         if (
-                self.privacy == Privacy.PUBLIC
+                self.privacy == utils.Privacy.PUBLIC
                 and not self.adv
                 and self.reminder is not False
                 and self.channel.user_limit > len(self.channel.members)
@@ -63,7 +41,7 @@ class TempVoice:
         elif self.reminder:
             self.reminder = None
 
-    async def send_adv(self, custom_text: str) -> None:
+    async def send_adv(self, custom_text):
         if not (server := self.bot.server(self.channel.guild.id)):
             raise errors.BotNotConfiguredError
         elif self.adv:
@@ -77,11 +55,11 @@ class TempVoice:
                    .filter(dis_id=self.channel.id)
                    .update(dis_adv_msg_id=adv_msg_id))
 
-    async def update_adv(self, custom_text: str = "") -> None:
+    async def update_adv(self, custom_text=""):
         if self.adv:
             await self.adv.update(temp_voice=self, text=custom_text)
 
-    async def delete_adv(self) -> bool:
+    async def delete_adv(self):
         if self.adv:
             await self.adv.delete()
             await (TempChannels
@@ -91,11 +69,7 @@ class TempVoice:
         return False
 
     async def send_reminder(self):
-        """
-        Send reminder for channel owner
-        :return:
-        """
-        if self.privacy == Privacy.PUBLIC and not self.adv:
+        if self.privacy == utils.Privacy.PUBLIC and not self.adv:
             await self.send_adv("")
             await self.channel.send(
                 embed=ui.ReminderEmbed(),
@@ -106,13 +80,13 @@ class TempVoice:
 
     def _update(
             self,
-            channel: discord.VoiceChannel,
-            creator: discord.Member,
-            owner: discord.Member,
-    ) -> None:
+            channel,
+            creator,
+            owner,
+    ):
         self.channel, self.creator, self.owner = channel, creator, owner
 
-    async def change_owner(self, new_owner: discord.Member) -> None:
+    async def change_owner(self, new_owner):
         self.owner = new_owner
         await self.channel.set_permissions(
             target=self.creator, overwrite=None
@@ -127,12 +101,7 @@ class TempVoice:
                .filter(dis_id=self.channel.id)
                .update(dis_owner_id=new_owner.id))
 
-    async def get_access(self, member: discord.Member) -> None:
-        """
-        Set access overwrites for user
-        :param member:
-        :return:
-        """
+    async def get_access(self, member):
         await self.channel.set_permissions(
             target=member,
             overwrite=discord.PermissionOverwrite(
@@ -143,7 +112,7 @@ class TempVoice:
             ),
         )
 
-    async def kick(self, member: discord.Member) -> None:
+    async def kick(self, member):
         if (
                 member.voice
                 and member.voice.channel
@@ -151,7 +120,7 @@ class TempVoice:
         ):
             await member.move_to(channel=None, reason="Kicked by channel owner")
 
-    async def take_access(self, member: discord.Member) -> None:
+    async def take_access(self, member):
         """
         Set block overwrites for user
         :param member:
@@ -168,8 +137,8 @@ class TempVoice:
         )
         await self.kick(member)
 
-    async def ban(self, member: discord.Member) -> None:
-        await Bans.update_or_create(
+    async def ban(self, member):
+        await TCBans.update_or_create(
             server=self.server_id,
             dis_creator_id=self.creator.id,
             dis_banned_id=member.id,
@@ -177,8 +146,8 @@ class TempVoice:
         )
         await self.take_access(member)
 
-    async def unban(self, ban_id: int) -> int:
-        ban = await Bans.get_or_none(id=ban_id)
+    async def unban(self, ban_id):
+        ban = await TCBans.get_or_none(id=ban_id)
         if ban and ban.banned:
             ban.banned = False
             await ban.save()
@@ -192,7 +161,7 @@ class TempVoice:
         else:
             raise errors.UserNotBannedError
 
-    async def change_privacy(self, mode: Privacy) -> None:
+    async def change_privacy(self, mode):
         overwrite = discord.PermissionOverwrite()
         match mode:
             case "0":

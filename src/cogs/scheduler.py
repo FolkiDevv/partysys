@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 from datetime import datetime
 
-from discord.ext import commands, tasks
+from discord.ext import tasks
 
 from src import services
 
 
-class Scheduler(commands.Cog):
-    def __init__(self, bot: services.Bot):
-        self.bot = bot
+class Scheduler(services.BaseCog):
+    def __init__(self, bot):
+        super().__init__(bot)
 
     @tasks.loop(minutes=1.0)
     async def adv_deleter(self):
@@ -51,5 +53,5 @@ class Scheduler(commands.Cog):
             self.reminder_sender.cancel()
 
 
-async def setup(bot: services.Bot) -> None:
+async def setup(bot) -> None:
     await bot.add_cog(Scheduler(bot))

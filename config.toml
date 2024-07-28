@@ -1,0 +1,14 @@
+cogs = [
+    "controller",
+    "voice",
+    "temp_voice_commands",
+    "scheduler",
+]
+
+[adv]
+# Макс кол-во пользователей отображаемых в обьявлении
+display_users_limit = 10
+# Время до удаления в минутах если канал без лимита на кол-во пользователей
+delete_after_unlimit = 3.0
+# Время до удаления в минутах если канал заполнен
+delete_after_fillment = 4.0

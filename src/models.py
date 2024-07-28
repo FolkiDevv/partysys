@@ -8,9 +8,10 @@ class Servers(models.Model):
     dis_wait_channel_id = fields.BigIntField()
 
     creator_channels: fields.ReverseRelation["CreatorChannels"]
-    bans: fields.ReverseRelation["Bans"]
+    tc_bans: fields.ReverseRelation["TCBans"]
 
     created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
 
     def __str__(self):
         return self.dis_id
@@ -28,6 +29,7 @@ class CreatorChannels(models.Model):
     def_user_limit = fields.SmallIntField(null=True)
 
     created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.dis_id}'
@@ -42,22 +44,24 @@ class TempChannels(models.Model):
     deleted = fields.BooleanField(default=False)
 
     created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.dis_id} by {self.dis_creator_id}'
 
 
-class Bans(models.Model):
+class TCBans(models.Model):
     id = fields.IntField(primary_key=True)
     server: fields.ForeignKeyRelation[Servers] = fields.ForeignKeyField(
         'models.Servers',
-        related_name='bans'
+        related_name='tc_bans'
     )
     dis_creator_id = fields.BigIntField()
     dis_banned_id = fields.BigIntField()
     banned = fields.BooleanField(default=True)
 
     created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.dis_creator_id} banned user {self.dis_banned_id}'

@@ -5,11 +5,15 @@ from contextlib import suppress
 from datetime import datetime, timedelta
 
 import discord
-import sentry_sdk
 
-from src import services, ui
-from src.services import base_classes, errors
-from src.utils import Privacy
+from config import CONF
+from src import utils
+from src.services import errors
+
+from .base import BaseView
+from .embeds import InterfaceEmbed, SuccessEmbed
+from .modals import AdvModal
+from .views import JoinInterface
 
 
 class Adv:
@@ -27,20 +31,22 @@ class Adv:
     async def send(
         self,
         adv_channel: discord.TextChannel,
-        temp_voice: services.TempVoice,
+        temp_voice: utils.TempVoiceABC,
         text: str,
     ) -> int:
         self.custom_text = text
 
-        if temp_voice.channel.user_limit == 0:
+        if not temp_voice.channel.user_limit:
             # If channel has unlimited slots, adv will be deleted after 3
             # minutes without changes
-            self.delete_after = datetime.now() + timedelta(minutes=3.)
+            self.delete_after = datetime.now() + timedelta(
+                minutes=CONF["adv"]["delete_after_unlimit"]
+            )
 
         self._message = await adv_channel.send(
             embed=AdvEmbed(temp_voice=temp_voice, text=self.custom_text),
-            view=ui.JoinInterface(
-                invite_url=await temp_voice.invite_url,
+            view=JoinInterface(
+                invite_url=await temp_voice.invite_url(),
                 disabled=len(temp_voice.channel.members)
                 >= temp_voice.channel.user_limit,
             ),
@@ -48,7 +54,7 @@ class Adv:
         return self._message.id
 
     async def update(
-        self, temp_voice: services.TempVoice, text: str = ""
+        self, temp_voice: utils.TempVoiceABC, text: str = ""
     ) -> None:
         if text:
             self.custom_text = text
@@ -56,7 +62,7 @@ class Adv:
             # if channel update state while adv sent
             self._update_delayed = True
 
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(2.)
 
             temp_voice.updated()
             await self.update(temp_voice, text)
@@ -65,17 +71,21 @@ class Adv:
         elif self._update_delayed:
             self._update_delayed = False
 
-        if temp_voice.channel.user_limit == 0:
-            self.delete_after = datetime.now() + timedelta(minutes=3.)
+        if not temp_voice.channel.user_limit:
+            self.delete_after = datetime.now() + timedelta(
+                minutes=CONF["adv"]["delete_after_unlimit"]
+            )
         elif len(temp_voice.channel.members) >= temp_voice.channel.user_limit:
-            self.delete_after = datetime.now() + timedelta(minutes=4.)
+            self.delete_after = datetime.now() + timedelta(
+                minutes=CONF["adv"]["delete_after_fillment"]
+            )
         else:
             self.delete_after = None
 
         view = None
-        if temp_voice.privacy == Privacy.PUBLIC:
-            view = ui.JoinInterface(
-                invite_url=await temp_voice.invite_url,
+        if temp_voice.privacy == utils.Privacy.PUBLIC:
+            view = JoinInterface(
+                invite_url=await temp_voice.invite_url(),
                 disabled=len(temp_voice.channel.members)
                 >= temp_voice.channel.user_limit
                 if temp_voice.channel.user_limit > 0
@@ -124,61 +134,10 @@ class Adv:
         return True
 
 
-class AdvModal(base_classes.BaseModal):
-    def __init__(self, temp_voice: services.TempVoice):
-        super().__init__(
-            title="Изменить объявление"
-            if temp_voice.adv
-            else "Опубликовать объявление",
-            custom_id="adv:public:modal",
-        )
-        self.temp_voice = temp_voice
-
-        self.text_inp = discord.ui.TextInput(
-            label="Текст объявления",
-            placeholder="Опишите требования к искомым тиммейтам/ваши планы. "
-            "Оставьте пустым, если нечего сказать.",
-            style=discord.TextStyle.long,
-            required=False,
-            max_length=240,
-            custom_id="adv:public:modal:text_input",
-            default=temp_voice.adv.custom_text
-            if temp_voice.adv and len(temp_voice.adv.custom_text)
-            else None,
-        )
-        self.add_item(self.text_inp)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        if self.temp_voice.adv:
-            await self.temp_voice.update_adv(custom_text=self.text_inp.value)
-            await interaction.response.edit_message(
-                view=None,
-                embed=ui.SuccessEmbed("Объявление было отредактировано."),
-            )
-        else:
-            await self.temp_voice.send_adv(custom_text=self.text_inp.value)
-            await interaction.response.send_message(
-                ephemeral=True,
-                embed=ui.SuccessEmbed(
-                    "Объявление было отправлено."
-                    if self.temp_voice.channel.user_limit
-                    else "Объявление было отправлено.\nУ вашего канала нет "
-                    "ограничению по числу пользователей,"
-                    "поэтому объявление будет удалено спустя 2 минуты простоя "
-                    "без изменений."
-                ),
-            )
-            sentry_sdk.metrics.incr(
-                "adv_manual_send",
-                1,
-                tags={"server": self.temp_voice.server_id},
-            )
-
-
-class AdvControlInterface(base_classes.BaseView):
+class AdvControlInterface(BaseView):
     def __init__(
             self,
-            bot: services.Bot
+            bot: utils.BotABC
     ):
         super().__init__(bot)
 
@@ -186,11 +145,13 @@ class AdvControlInterface(base_classes.BaseView):
         emoji="📝", custom_id="adv:public", style=discord.ButtonStyle.primary
     )
     async def adv_public(self, interaction: discord.Interaction, *_):
-        if self.temp_voice.privacy == "0":
+        if self.temp_voice.privacy == utils.Privacy.PUBLIC:
             if self.temp_voice.channel.user_limit > len(
                 self.temp_voice.channel.members
             ):
-                await interaction.response.send_modal(AdvModal(self.temp_voice))
+                await interaction.response.send_modal(
+                    AdvModal(self.temp_voice)
+                )
             else:
                 raise errors.AdvChannelIsFullError
         else:
@@ -203,17 +164,17 @@ class AdvControlInterface(base_classes.BaseView):
         self.temp_voice.reminder = False  # Disable reminder
         await self.temp_voice.delete_adv()
         await interaction.response.edit_message(
-            view=None, embed=ui.SuccessEmbed("Объявление было удалено.")
+            view=None, embed=SuccessEmbed("Объявление было удалено.")
         )
 
 
 class AdvEmbed(discord.Embed):
-    def __init__(self, temp_voice: services.TempVoice, text: str):
+    def __init__(self, temp_voice: utils.TempVoiceABC, text: str):
         super().__init__()
         self._gen_text(custom_text=text, temp_voice=temp_voice)
 
     @staticmethod
-    def _gen_user_list(temp_voice: services.TempVoice) -> list[str]:
+    def _gen_user_list(temp_voice: utils.TempVoiceABC) -> list[str]:
         text = []
         max_users_count, users_count = (
             temp_voice.channel.user_limit,
@@ -232,12 +193,12 @@ class AdvEmbed(discord.Embed):
                     f"<:member_white:1176147115282534440> {member.mention}"
                 )
 
-        text = text[:10]
-
-        if users_count > 10:
+        if users_count > CONF["adv"]["display_users_limit"]:
+            text = text[:CONF["adv"]["display_users_limit"]]
             text.append(
                 f"...\nИ другие <:member_white:1176147115282534440> "
-                f"{len(text) - 10} пользователей."
+                f"{len(text) - CONF["adv"]["display_users_limit"]}"
+                f" пользователей."
             )
 
         if not max_users_count:
@@ -245,7 +206,7 @@ class AdvEmbed(discord.Embed):
                 "...\nНеограниченное число <:member_blue:1176147113739026432> "
                 "свободных мест."
             )
-        elif max_users_count - users_count > 10:
+        elif max_users_count - users_count > CONF["adv"]["display_users_limit"]:
             text.append(
                 f"...\nОсталось <:member_blue:1176147113739026432> "
                 f"{max_users_count - users_count} свободных мест."
@@ -259,7 +220,7 @@ class AdvEmbed(discord.Embed):
         return text
 
     def _gen_text(
-        self, custom_text: str, temp_voice: services.TempVoice
+        self, custom_text: str, temp_voice: utils.TempVoiceABC
     ) -> None:
         avatar = (
             temp_voice.owner.avatar.url
@@ -272,7 +233,7 @@ class AdvEmbed(discord.Embed):
             temp_voice.channel.user_limit,
             len(temp_voice.channel.members),
         )
-        text: list[str] = []
+        text = []
         if len(custom_text):
             text.append(f"📢 {custom_text}\n")
 
@@ -281,7 +242,7 @@ class AdvEmbed(discord.Embed):
         if users_count >= max_users_count:
             self.set_footer(text="Канал заполнен ⛔")
             self.colour = 0x303136
-        elif max_users_count == 0:
+        elif not max_users_count:
             self.set_footer(
                 text="🔎 В поиске команды. Без ограничений по количеству."
             )
@@ -296,11 +257,11 @@ class AdvEmbed(discord.Embed):
         self.timestamp = datetime.now()
 
 
-class AdvInterface(base_classes.BaseView):
-    def __init__(self, bot: services.Bot):
+class AdvInterface(BaseView):
+    def __init__(self, bot: utils.BotABC):
         super().__init__(bot, timeout=None)
 
-    def check(self, interaction: discord.Interaction) -> services.TempVoice:
+    def check(self, interaction: discord.Interaction) -> utils.TempVoiceABC:
         if server := self.bot.server(interaction.guild_id):
             temp_channel = server.get_user_channel(
                 interaction.user, interaction.channel_id
@@ -317,8 +278,7 @@ class AdvInterface(base_classes.BaseView):
             *args,
             **kwargs,
         ):
-            temp_voice = self.check(interaction)
-            if temp_voice:
+            if temp_voice := self.check(interaction):
                 return await func(self, temp_voice, *args, **kwargs)
             else:
                 raise errors.UserNoTempChannelsError
@@ -327,7 +287,7 @@ class AdvInterface(base_classes.BaseView):
 
     @staticmethod
     async def handle_no_adv(temp_voice, interaction):
-        if temp_voice.privacy == "0":
+        if temp_voice.privacy == utils.Privacy.PUBLIC:
             if temp_voice.channel.user_limit > len(temp_voice.channel.members):
                 await interaction.response.send_modal(AdvModal(temp_voice))
             else:
@@ -340,9 +300,10 @@ class AdvInterface(base_classes.BaseView):
         await interaction.response.send_message(
             ephemeral=True,
             view=AdvControlInterface(temp_voice.bot),
-            embed=ui.InterfaceEmbed(
+            embed=InterfaceEmbed(
                 "Управление объявлением",
-                "📝 - Изменить текст объявления.\n\n🗑️ - Удалить объявление.",
+                "📝 - Изменить текст объявления."
+                "\n\n🗑️ - Удалить объявление.",
             ),
         )
 
@@ -353,7 +314,7 @@ class AdvInterface(base_classes.BaseView):
     async def adv(
         self,
         interaction: discord.Interaction,
-        temp_voice: services.TempVoice,
+        temp_voice: utils.TempVoiceABC,
         *_,
     ):
         if temp_voice.adv:
