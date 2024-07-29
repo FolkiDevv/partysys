@@ -15,6 +15,7 @@ from .views import (
     PrivacyInterface,
     TakeAccessInterface,
     UnbanInterface,
+    TransferOwnerInterface
 )
 
 
@@ -168,12 +169,15 @@ class ControlInterface(AdvInterface):
         row=2,
     )
     async def unban(
-            self, interaction: discord.Interaction,
-            temp_voice: utils.TempVoiceABC, *_
+            self, interaction: discord.Interaction, *_
     ):
+        server = self.bot.server(interaction.guild_id)
+        if not server:
+            raise errors.BotNotConfiguredError
+
         if ban_list_raw := await TCBans.filter(
-                server=temp_voice.server_id,
-                dis_creator_id=temp_voice.creator.id,
+                server_id=server.server_id,
+                dis_creator_id=interaction.user.id,
                 banned=True,
         ):
             await interaction.response.send_message(
@@ -246,6 +250,7 @@ class ControlInterface(AdvInterface):
                      "и вы больше не сможете им управлять, пока не вернете их "
                      "себе.",
             ),
+            view=TransferOwnerInterface(self.bot)
         )
 
     @discord.ui.button(

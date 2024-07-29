@@ -152,7 +152,7 @@ class UnbanInterface(BaseView):
             user = guild.get_member(ban.dis_banned_id)
             if user:
                 self.select_user.add_option(
-                    label=user.display_name, value=ban.id
+                    label=f'{user.display_name} (ID: {user.id})', value=ban.id
                 )
             else:
                 self.select_user.add_option(

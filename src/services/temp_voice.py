@@ -139,7 +139,7 @@ class TempVoice(utils.TempVoiceABC):
 
     async def ban(self, member):
         await TCBans.update_or_create(
-            server=self.server_id,
+            server_id=self.server_id,
             dis_creator_id=self.creator.id,
             dis_banned_id=member.id,
             banned=True,

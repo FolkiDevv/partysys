@@ -121,7 +121,7 @@ class Voice(services.BaseCog):
                         logger.info(f"Channel {channel.id} restored")
                 await asyncio.sleep(0.1)
             self.channels_restored = True
-            logger.info("All channels restored!")
+            logger.success("All channels restored!")
 
 
 async def setup(bot):

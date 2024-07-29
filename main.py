@@ -74,7 +74,7 @@ bot.remove_command("help")
 
 @bot.event
 async def on_ready():
-    logger.info(f"Logged in as {bot.user.name} {bot.user.id}.")
+    logger.success(f"Logged in as {bot.user.name} {bot.user.id}.")
     await bot.tree.sync(guild=discord.Object(os.getenv("DEV_SERVER_ID")))
 
 
