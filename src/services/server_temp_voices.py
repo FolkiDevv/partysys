@@ -7,7 +7,7 @@ import discord
 from sentry_sdk import metrics
 
 from src import ui, utils
-from src.models import TCBans, CreatorChannels, Servers, TempChannels
+from src.models import CreatorChannels, Servers, TCBans, TempChannels
 
 from .temp_voice import TempVoice
 
@@ -46,7 +46,7 @@ class Server(utils.ServerABC):
             self._random_names_index += 1
         return name
 
-    async def _get_settings_from_db(self, guild_id: int) -> None:
+    async def _get_settings_from_db(self, guild_id):
         if server := await Servers.get_or_none(dis_id=guild_id):
             self.server_id: int = server.id
             self.adv_channel = self.bot.get_channel(

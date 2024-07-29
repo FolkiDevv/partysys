@@ -106,27 +106,27 @@ class TempVoiceABC(abc.ABC):
 
     @abc.abstractmethod
     async def invite_url(self) -> str:
-        pass
+        ...
 
     @abc.abstractmethod
     def updated(self):
-        pass
+        ...
 
     @abc.abstractmethod
     async def send_adv(self, custom_text: str) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def update_adv(self, custom_text: str = "") -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def delete_adv(self) -> bool:
-        pass
+        ...
 
     @abc.abstractmethod
     async def send_reminder(self):
-        pass
+        ...
 
     @abc.abstractmethod
     def _update(
@@ -135,11 +135,11 @@ class TempVoiceABC(abc.ABC):
             creator: discord.Member,
             owner: discord.Member,
     ) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def change_owner(self, new_owner: discord.Member) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def get_access(self, member: discord.Member) -> None:
@@ -148,35 +148,35 @@ class TempVoiceABC(abc.ABC):
         :param member:
         :return:
         """
-        pass
+        ...
 
     @abc.abstractmethod
     async def kick(self, member: discord.Member) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def take_access(self, member: discord.Member) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def ban(self, member: discord.Member) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def unban(self, ban_id: int) -> int:
-        pass
+        ...
 
     @abc.abstractmethod
     async def change_privacy(self, mode: Privacy) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def send_interface(self):
-        pass
+        ...
 
     @abc.abstractmethod
     async def delete(self):
-        pass
+        ...
 
 
 class ServerABC(abc.ABC):
@@ -194,11 +194,19 @@ class ServerABC(abc.ABC):
         self._random_names = sample(SQUAD_TITLES, len(SQUAD_TITLES))
         self._random_names_index = 0
 
-        self._last_data_update = datetime.datetime.now()
+        self._last_data_update = datetime.datetime.fromtimestamp(0.)
+
+    @abc.abstractmethod
+    async def _get_settings_from_db(self, guild_id: int) -> None:
+        ...
 
     @abc.abstractmethod
     async def update_server_data(self) -> None:
-        pass
+        ...
+
+    @abc.abstractmethod
+    def _get_random_squad_name(self) -> str:
+        ...
 
     @abc.abstractmethod
     async def create_channel(
@@ -206,19 +214,19 @@ class ServerABC(abc.ABC):
             member: discord.Member,
             creator_channel_id: int
     ) -> discord.VoiceChannel | None:
-        pass
+        ...
 
     @abc.abstractmethod
     async def del_channel(self, channel_id: int) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     def is_creator_channel(self, channel_id: int) -> bool:
-        pass
+        ...
 
     @abc.abstractmethod
     def is_temp_channel(self, channel_id: int) -> bool:
-        pass
+        ...
 
     @abc.abstractmethod
     def get_user_channel(
@@ -226,26 +234,26 @@ class ServerABC(abc.ABC):
             member: discord.Member,
             interaction_channel_id: int = None
     ) -> TempVoiceABC | bool:
-        pass
+        ...
 
     @abc.abstractmethod
     def get_user_transferred_channel(
             self,
             member_id: int
     ) -> TempVoiceABC | bool:
-        pass
+        ...
 
     @abc.abstractmethod
     def get_creator_channels_ids(self) -> list[int]:
-        pass
+        ...
 
     @abc.abstractmethod
     def channel(self, channel_id: int) -> TempVoiceABC | None:
-        pass
+        ...
 
     @abc.abstractmethod
     def all_channels(self) -> dict[int, TempVoiceABC]:
-        pass
+        ...
 
     @abc.abstractmethod
     async def restore_channel(
@@ -255,7 +263,7 @@ class ServerABC(abc.ABC):
             creator_id: int,
             adv_msg_id: int,
     ) -> TempVoiceABC:
-        pass
+        ...
 
 
 # Use commands.AutoShardedBot if you have more than 1k guilds
@@ -264,4 +272,4 @@ class BotABC(abc.ABC, commands.Bot):
 
     @abc.abstractmethod
     def server(self, guild_id: int) -> ServerABC | None:
-        pass
+        ...

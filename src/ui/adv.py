@@ -279,7 +279,7 @@ class AdvInterface(BaseView):
             **kwargs,
         ):
             if temp_voice := self.check(interaction):
-                return await func(self, temp_voice, *args, **kwargs)
+                return await func(self, interaction, temp_voice, *args, **kwargs)
             else:
                 raise errors.UserNoTempChannelsError
 

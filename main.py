@@ -11,7 +11,7 @@ from config import CONF
 from src import services
 
 logger.remove(0)
-if os.getenv("DEBUG", "0") == "1":
+if os.getenv("DEBUG", "0") == "0":
     logger.add(
         sys.stderr,
         level="WARNING",
@@ -82,7 +82,7 @@ async def main():
     # Initialize Tortoise
     await Tortoise.init(
         db_url=f'mysql://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}'
-               f'@{os.getenv("DB_HOST")}:3306/{os.getenv("DB_NAME")}',
+               f'@{os.getenv("DB_HOST")}:32768/{os.getenv("DB_NAME")}',
         modules={"models": ["src.models"]}
     )
     await Tortoise.generate_schemas()
@@ -91,6 +91,7 @@ async def main():
         for extension in CONF.get("cogs", []):
             try:
                 await bot.load_extension(f'src.cogs.{extension}')
+                logger.info(f"Loaded extension {extension}.")
             except Exception as e:
                 logger.error(e)
         await bot.start(os.getenv("DISCORD_TOKEN"))

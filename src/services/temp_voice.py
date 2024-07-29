@@ -164,21 +164,21 @@ class TempVoice(utils.TempVoiceABC):
     async def change_privacy(self, mode):
         overwrite = discord.PermissionOverwrite()
         match mode:
-            case "0":
+            case utils.Privacy.PUBLIC:
                 overwrite.update(
                     view_channel=True,
                     read_messages=True,
                     connect=True,
                     send_messages=True,
                 )
-            case "1":
+            case utils.Privacy.PRIVATE:
                 overwrite.update(
                     view_channel=True,
                     read_messages=True,
                     connect=False,
                     send_messages=False,
                 )
-            case "2":
+            case utils.Privacy.HIDDEN:
                 overwrite.update(
                     view_channel=False,
                     read_messages=False,

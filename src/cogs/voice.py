@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import logging
+import asyncio
 
 import discord
 from discord.ext import commands
+from loguru import logger
 from sentry_sdk import metrics
 
 from src import services
@@ -26,22 +27,27 @@ class Voice(services.BaseCog):
         if after.channel == before.channel:
             return None
 
+        logger.debug("on_voice_state_update event triggered")
+
         if (
                 after.channel
                 and after.channel.type == discord.ChannelType.voice
                 and (after_server := self.bot.server(after.channel.guild.id))
         ):
+            logger.debug("User joined to voice channel")
             await after_server.update_server_data()
             if after_server.is_creator_channel(after.channel.id):
+                logger.debug("User joined to creator channel")
                 # Check if user join in Creator channel
                 if temp_voice := await after_server.create_channel(
                         member, after.channel.id
                 ):
-                    logging.info(
+                    logger.info(
                         f"Temp voice {temp_voice.id} created and user "
                         f"{member.id} moved into."
                     )
             elif after_server.is_temp_channel(after.channel.id):
+                logger.debug("User joined to temp channel")
                 # Check if user join Temp channel
                 if after_temp_voice := after_server.channel(after.channel.id):
                     metrics.incr(
@@ -62,11 +68,12 @@ class Voice(services.BaseCog):
                 # Check if user leave Temp channel
                 if not len(before.channel.members):
                     await before_server.del_channel(before.channel.id)
-                    logging.info(
+                    logger.info(
                         f"Temp voice {before.channel.id} deleted, because "
                         f"its empty."
                     )
                 else:
+                    logger.debug("User leaved from temp channel")
                     if before_temp_voice := before_server.channel(
                             before.channel.id
                     ):
@@ -96,21 +103,25 @@ class Voice(services.BaseCog):
     async def on_ready(self):
         if not self.channels_restored:
             for raw_channel in await TempChannels.filter(deleted=0):
+                logger.debug(f"Channel {raw_channel.id} try to restore")
                 if channel := self.bot.get_channel(raw_channel.dis_id):
-                    temp_channel = await self.bot.server(
-                        channel.guild.id
-                    ).restore_channel(
-                        channel,
-                        raw_channel.dis_owner_id,
-                        raw_channel.dis_creator_id,
-                        raw_channel.dis_adv_msg_id,
-                    )
-                    if not temp_channel.channel.members:
-                        await self.bot.server(channel.guild.id).del_channel(
-                            channel.id
+                    logger.debug(f"{raw_channel.id} try to restore 1")
+                    if server := self.bot.server(channel.guild.id):
+                        logger.debug(f"{raw_channel.id} try to restore 2")
+                        temp_channel = await server.restore_channel(
+                            channel,
+                            raw_channel.dis_owner_id,
+                            raw_channel.dis_creator_id,
+                            raw_channel.dis_adv_msg_id,
                         )
+                        if not temp_channel.channel.members:
+                            await self.bot.server(channel.guild.id).del_channel(
+                                channel.id
+                            )
+                        logger.info(f"Channel {channel.id} restored")
+                await asyncio.sleep(0.1)
             self.channels_restored = True
-            logging.info("All channels restored!")
+            logger.info("All channels restored!")
 
 
 async def setup(bot):
