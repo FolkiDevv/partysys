@@ -82,7 +82,8 @@ async def main():
     # Initialize Tortoise
     await Tortoise.init(
         db_url=f'mysql://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}'
-               f'@{os.getenv("DB_HOST")}:32768/{os.getenv("DB_NAME")}',
+               f'@{os.getenv("DB_HOST")}:{os.getenv("DB_PORT")}'
+               f'/{os.getenv("DB_NAME")}',
         modules={"models": ["src.models"]}
     )
     await Tortoise.generate_schemas()
