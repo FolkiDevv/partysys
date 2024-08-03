@@ -35,6 +35,17 @@ class TempVoiceABC(abc.ABC):
         self._invite_url: str | None = None  # Invite link on this channel
         self.server_id = server_id  # Local server id in DB
 
+    def __repr__(self) -> str:
+        return (
+            f'<{self.__class__.__name__} '
+            f'server_id={self.server_id} '
+            f'channel={self.channel} '
+            f'creator={self.creator} '
+            f'owner={self.owner} '
+            f'adv={self.adv} '
+            f'>'
+        )
+
     @classmethod
     @abc.abstractmethod
     async def create(
@@ -134,6 +145,14 @@ class ServerABC(abc.ABC):
         self._random_names_index = 0
 
         self._last_data_update = datetime.datetime.fromtimestamp(0.)
+
+    def __repr__(self) -> str:
+        return (
+            f'<{self.__class__.__name__} '
+            f'server_id={self.server_id} '
+            f'guild={self.guild} '
+            f'>'
+        )
 
     @classmethod
     @final

@@ -39,6 +39,14 @@ class Adv:
 
         self._update_delayed = False
 
+    def __repr__(self) -> str:
+        return (
+            f'<{self.__class__.__name__} '
+            f'msg={self._message} '
+            f'temp_channel_id={self.temp_channel_id}'
+            f'>'
+        )
+
     def __bool__(self):
         return self._message is not None
 
