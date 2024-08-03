@@ -2,85 +2,16 @@ import abc
 import datetime
 from random import sample
 from types import MappingProxyType
+from typing import Callable, NoReturn, Self, final
 
 import discord
 from discord.ext import commands
 
+from config import CFG
 from src import ui
 from src.models import CreatorChannels
 
 from .enums import Privacy
-
-SQUAD_TITLES = (
-    "Альфа",
-    "Омега",
-    "Феникс",
-    "Грифон",
-    "Дракон",
-    "Волк",
-    "Сокол",
-    "Титан",
-    "Легион",
-    "Центурион",
-    "Шторм",
-    "Север",
-    "Молния",
-    "Сталь",
-    "Кобра",
-    "Пантера",
-    "Лев",
-    "Гладиатор",
-    "Викинг",
-    "Спартанец",
-    "Комета",
-    "Буря",
-    "Арктика",
-    "Торнадо",
-    "Ястреб",
-    "Медведь",
-    "Тигр",
-    "Ягуар",
-    "Скорпион",
-    "Марс",
-    "Железо",
-    "Рубин",
-    "Оникс",
-    "Сапфир",
-    "Жемчуг",
-    "Топаз",
-    "Аметист",
-    "Опал",
-    "Агат",
-    "Бриллиант",
-    "Небеса",
-    "Ореол",
-    "Квазар",
-    "Нимб",
-    "Аврора",
-    "Баррикада",
-    "Каратель",
-    "Навигатор",
-    "Пионер",
-    "Квант",
-    "Эклипс",
-    "Галактика",
-    "Импульс",
-    "Метеор",
-    "Нейтрон",
-    "Протон",
-    "Радар",
-    "Сигма",
-    "Циклон",
-    "СБЭУ",
-    "Профессионалов",
-    "BEAR",
-    "USEC",
-    "Скайнет",
-    "Скуфов",
-    "Решал",
-    "LABS",
-    "GIGACHADS",
-)
 
 
 class TempVoiceABC(abc.ABC):
@@ -96,13 +27,26 @@ class TempVoiceABC(abc.ABC):
         self.channel = channel
         self.creator = creator if creator else owner
         self.owner = owner
-        self.adv = ui.Adv()
+        self.adv = ui.Adv(channel.id)
 
         self.reminder: datetime.datetime | None | False = None
 
         self.privacy: Privacy = Privacy.PUBLIC
         self._invite_url: str | None = None  # Invite link on this channel
         self.server_id = server_id  # Local server id in DB
+
+    @classmethod
+    @abc.abstractmethod
+    async def create(
+            cls,
+            bot: 'BotABC',
+            category: discord.CategoryChannel,
+            creator_channel: CreatorChannels,
+            member: discord.Member,
+            name_formatter: Callable[[str], str],
+            server_id: int,
+    ) -> Self:
+        ...
 
     @abc.abstractmethod
     async def invite_url(self) -> str:
@@ -113,19 +57,7 @@ class TempVoiceABC(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def send_adv(self, custom_text: str) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def update_adv(self, custom_text: str = "") -> None:
-        ...
-
-    @abc.abstractmethod
-    async def delete_adv(self) -> bool:
-        ...
-
-    @abc.abstractmethod
-    async def send_reminder(self):
+    async def send_reminder(self, adv_channel: discord.TextChannel):
         ...
 
     @abc.abstractmethod
@@ -180,28 +112,47 @@ class TempVoiceABC(abc.ABC):
 
 
 class ServerABC(abc.ABC):
+    @final
+    def __new__(cls, *args, **kwargs) -> NoReturn:
+        raise TypeError(f"Can't create {cls.__name__!r} objects directly")
+
     def __init__(self, bot: 'BotABC', guild: discord.Guild):
         self.bot = bot
-
-        self.server_id: int | None = None  # Local ID
-        self.adv_channel: discord.TextChannel | None = None
         self.guild = guild
+
+        self.server_id: int | None = None  # Server id in DB
+        self.adv_channel: discord.TextChannel | None = None
         self._creator_channels: MappingProxyType[
-            int, CreatorChannels] = MappingProxyType({})  # noqa: E501
+            int, CreatorChannels
+        ] = MappingProxyType({})
         self._temp_channels: dict[int, TempVoiceABC] = {}
 
         # Random iterator for temp voice random squad name
-        self._random_names = sample(SQUAD_TITLES, len(SQUAD_TITLES))
+        self._random_names = tuple(
+            sample(CFG['squad_names'], len(CFG['squad_names']))
+        )
         self._random_names_index = 0
 
         self._last_data_update = datetime.datetime.fromtimestamp(0.)
 
+    @classmethod
+    @final
+    def new(cls, bot: 'BotABC', guild: discord.Guild) -> Self:
+        instance = super().__new__(cls)
+        instance.__init__(bot, guild)
+
+        bot.loop.create_task(
+            instance._update_settings(guild.id)
+        )
+
+        return instance
+
     @abc.abstractmethod
-    async def _get_settings_from_db(self, guild_id: int) -> None:
+    async def _update_settings(self, guild_id: int) -> None:
         ...
 
     @abc.abstractmethod
-    async def update_server_data(self) -> None:
+    async def update_settings(self) -> None:
         ...
 
     @abc.abstractmethod
@@ -229,7 +180,7 @@ class ServerABC(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def get_user_channel(
+    def get_member_tv(
             self,
             member: discord.Member,
             interaction_channel_id: int = None
@@ -237,7 +188,7 @@ class ServerABC(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def get_user_transferred_channel(
+    def get_member_transferred_tv(
             self,
             member_id: int
     ) -> TempVoiceABC | bool:

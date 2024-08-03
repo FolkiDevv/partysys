@@ -2,23 +2,112 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import datetime, timedelta
+from typing import Self
 
 import discord
 
+from config import CFG
 from src import ui, utils
 from src.models import TCBans, TempChannels
 from src.services import errors
 
 
 class TempVoice(utils.TempVoiceABC):
+    __slots__ = (
+        "bot",
+        "channel",
+        "server_id",
+        "creator",
+        "owner",
+
+        "adv",
+        "reminder",
+        "privacy",
+        "_invite_url",
+    )
+
+    @classmethod
+    async def create(
+            cls,
+            bot,
+            category,
+            creator_channel,
+            member,
+            name_formatter,
+            server_id,
+    ) -> Self:
+        channel = await category.create_voice_channel(
+            name=name_formatter(creator_channel.def_name),
+            user_limit=creator_channel.def_user_limit,
+        )
+        temp_voice = cls(
+            bot,
+            channel,
+            member,
+            server_id,
+            member,
+        )
+
+        await TempChannels.create(
+            dis_id=channel.id,
+            dis_creator_id=member.id,
+            dis_owner_id=member.id,
+            server_id=server_id,
+        )
+
+        try:
+            await member.move_to(
+                channel,
+                reason="Move to created temp voice",
+            )
+        except discord.HTTPException as e:
+            if e.code == 40032:
+                # If owner leaved from creator channel delete temp voice
+                await temp_voice.delete()
+            raise e
+
+        overwrites = {
+            member: discord.PermissionOverwrite(
+                move_members=True,
+            )
+        }
+
+        # Next get owner ban list and restore them to the new channel
+        for raw_ban in await TCBans.filter(
+                server=server_id,
+                dis_creator_id=member.id,
+                banned=True
+        ):
+            if banned_member := channel.guild.get_member(raw_ban.dis_banned_id):
+                overwrites[banned_member] = discord.PermissionOverwrite(
+                    view_channel=False,
+                    connect=False,
+                    speak=False,
+                    send_messages=False,
+                    add_reactions=False,
+                    send_messages_in_threads=False,
+                )
+
+        try:
+            overwrites.update(channel.overwrites)
+            await channel.edit(
+                overwrites=overwrites, reason="Set permissions"
+            )
+
+            await temp_voice.send_interface()
+        except (discord.NotFound, discord.HTTPException) as err:
+            await temp_voice.delete()
+            raise err
+
+        return temp_voice
+
     async def invite_url(self):
         if not self._invite_url:
             for inv in await self.channel.invites():
                 if inv.inviter.id == self.bot.user.id:
                     self._invite_url = inv.url
-                    break
+                    return self._invite_url
 
-        if not self._invite_url:
             self._invite_url = (
                 await self.channel.create_invite(
                     reason="Join link to this temp voice."
@@ -27,8 +116,7 @@ class TempVoice(utils.TempVoiceABC):
         return self._invite_url
 
     def updated(self):
-        new_state = self.bot.get_channel(self.channel.id)
-        if new_state and new_state.type == discord.ChannelType.voice:
+        if new_state := self.bot.get_channel(self.channel.id):
             self.channel = new_state
 
         if (
@@ -37,40 +125,19 @@ class TempVoice(utils.TempVoiceABC):
                 and self.reminder is not False
                 and self.channel.user_limit > len(self.channel.members)
         ):
-            self.reminder = datetime.now() + timedelta(minutes=2.0)
+            self.reminder = datetime.now() + timedelta(
+                minutes=CFG['before_auto_pub']
+            )
         elif self.reminder:
             self.reminder = None
 
-    async def send_adv(self, custom_text):
-        if not (server := self.bot.server(self.channel.guild.id)):
-            raise errors.BotNotConfiguredError
-        elif self.adv:
-            return
-
-        if adv_msg_id := await self.adv.send(
-                adv_channel=server.adv_channel, temp_voice=self,
-                text=custom_text
-        ):
-            await (TempChannels
-                   .filter(dis_id=self.channel.id)
-                   .update(dis_adv_msg_id=adv_msg_id))
-
-    async def update_adv(self, custom_text=""):
-        if self.adv:
-            await self.adv.update(temp_voice=self, text=custom_text)
-
-    async def delete_adv(self):
-        if self.adv:
-            await self.adv.delete()
-            await (TempChannels
-                   .filter(dis_id=self.channel.id)
-                   .update(dis_adv_msg_id=None))
-            return True
-        return False
-
-    async def send_reminder(self):
+    async def send_reminder(self, adv_channel):
         if self.privacy == utils.Privacy.PUBLIC and not self.adv:
-            await self.send_adv("")
+            await self.adv.send(
+                adv_channel,
+                self,
+                "",
+            )
             await self.channel.send(
                 embed=ui.ReminderEmbed(),
                 view=ui.AdvInterface(self.bot),
@@ -205,4 +272,10 @@ class TempVoice(utils.TempVoiceABC):
             await self.channel.delete(
                 reason="Temp channel is empty or deleted by owner."
             )
-            await self.delete_adv()
+            await self.adv.delete()
+
+            await (
+                TempChannels
+                .filter(dis_id=self.channel.id)
+                .update(deleted=True)
+            )

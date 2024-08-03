@@ -81,7 +81,7 @@ class LimitModal(BaseModal):
 
     async def on_submit(self, interaction: discord.Interaction):
         if server := self.bot.server(interaction.guild_id):
-            if temp_voice := server.get_user_channel(interaction.user):
+            if temp_voice := server.get_member_tv(interaction.user):
                 if not self.text_inp.value or self.text_inp.value == "0":
                     await temp_voice.channel.edit(user_limit=0)
                     await interaction.response.send_message(
@@ -130,7 +130,7 @@ class RenameModal(BaseModal):
 
     async def on_submit(self, interaction: discord.Interaction):
         if server := self.bot.server(interaction.guild_id):
-            if temp_voice := server.get_user_channel(interaction.user):
+            if temp_voice := server.get_member_tv(interaction.user):
                 await temp_voice.channel.edit(name=self.text_inp.value)
                 await interaction.response.send_message(
                     embed=SuccessEmbed(

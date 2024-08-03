@@ -35,7 +35,7 @@ class Voice(services.BaseCog):
                 and (after_server := self.bot.server(after.channel.guild.id))
         ):
             logger.debug("User joined to voice channel")
-            await after_server.update_server_data()
+            await after_server.update_settings()
             if after_server.is_creator_channel(after.channel.id):
                 logger.debug("User joined to creator channel")
                 # Check if user join in Creator channel
@@ -56,14 +56,14 @@ class Voice(services.BaseCog):
                         tags={"server": after_server.guild.id},
                     )
                     after_temp_voice.updated()
-                    await after_temp_voice.update_adv()
+                    await after_temp_voice.adv.update()
 
         if (
                 before.channel
                 and before.channel.type == discord.ChannelType.voice
                 and (before_server := self.bot.server(before.channel.guild.id))
         ):
-            await before_server.update_server_data()
+            await before_server.update_settings()
             if before_server.is_temp_channel(before.channel.id):
                 # Check if user leave Temp channel
                 if not len(before.channel.members):
@@ -78,7 +78,7 @@ class Voice(services.BaseCog):
                             before.channel.id
                     ):
                         before_temp_voice.updated()
-                        await before_temp_voice.update_adv()
+                        await before_temp_voice.adv.update()
 
     @commands.Cog.listener()
     async def on_guild_channel_update(
@@ -97,17 +97,14 @@ class Voice(services.BaseCog):
             if temp_voice := server.channel(before.id):
                 temp_voice.updated()
                 if temp_voice.adv:
-                    await temp_voice.update_adv()
+                    await temp_voice.adv.update()
 
     @commands.Cog.listener()
     async def on_ready(self):
         if not self.channels_restored:
             for raw_channel in await TempChannels.filter(deleted=0):
-                logger.debug(f"Channel {raw_channel.id} try to restore")
                 if channel := self.bot.get_channel(raw_channel.dis_id):
-                    logger.debug(f"{raw_channel.id} try to restore 1")
                     if server := self.bot.server(channel.guild.id):
-                        logger.debug(f"{raw_channel.id} try to restore 2")
                         temp_channel = await server.restore_channel(
                             channel,
                             raw_channel.dis_owner_id,
@@ -121,7 +118,7 @@ class Voice(services.BaseCog):
                         logger.info(f"Channel {channel.id} restored")
                 await asyncio.sleep(0.1)
             self.channels_restored = True
-            logger.success("All channels restored!")
+            logger.info("Channels restore done")
 
 
 async def setup(bot):

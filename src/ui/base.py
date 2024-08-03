@@ -23,7 +23,7 @@ class BaseView(discord.ui.View):
         if not self.server:
             raise errors.BotNotConfiguredError
 
-        self.temp_voice = self.server.get_user_channel(
+        self.temp_voice = self.server.get_member_tv(
             interaction.user,
             interaction.channel_id,
         )

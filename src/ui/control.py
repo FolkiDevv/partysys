@@ -209,11 +209,11 @@ class ControlInterface(AdvInterface):
     )
     async def return_owner(self, interaction: discord.Interaction, *_):
         if server := self.bot.server(interaction.guild_id):
-            temp_voice = server.get_user_transferred_channel(
+            temp_voice = server.get_member_transferred_tv(
                 interaction.user.id
             )
             if temp_voice and temp_voice.owner != temp_voice.creator:
-                if server.get_user_channel(interaction.user):
+                if server.get_member_tv(interaction.user):
                     raise errors.UserAlreadyOwnerError
                 await temp_voice.channel.send(
                     f"<:info:1177314633124696165> {temp_voice.owner.mention} "

@@ -6,10 +6,11 @@ from datetime import datetime, timedelta
 
 import discord
 
-from config import CONF
+from config import CFG
 from src import utils
 from src.services import errors
 
+from ..models import TempChannels
 from .base import BaseView
 from .embeds import InterfaceEmbed, SuccessEmbed
 from .modals import AdvModal
@@ -17,8 +18,22 @@ from .views import JoinInterface
 
 
 class Adv:
-    def __init__(self, msg: discord.Message | None = None):
+    __slots__ = (
+        "temp_channel_id",
+        "_message",
+        "custom_text",
+        "delete_after",
+        "_update_delayed",
+    )
+
+    def __init__(
+            self,
+            temp_channel_id: int,
+            msg: discord.Message | None = None
+    ):
+        self.temp_channel_id = temp_channel_id
         self._message = msg
+
         self.custom_text = ""
         self.delete_after: datetime | None = None
 
@@ -40,7 +55,7 @@ class Adv:
             # If channel has unlimited slots, adv will be deleted after 3
             # minutes without changes
             self.delete_after = datetime.now() + timedelta(
-                minutes=CONF["adv"]["delete_after_unlimit"]
+                minutes=CFG["adv"]["delete_after_unlimit"]
             )
 
         self._message = await adv_channel.send(
@@ -51,6 +66,11 @@ class Adv:
                 >= temp_voice.channel.user_limit,
             ),
         )
+
+        await (TempChannels
+               .filter(dis_id=self.temp_channel_id)
+               .update(dis_adv_msg_id=self._message.id))
+
         return self._message.id
 
     async def update(
@@ -73,11 +93,11 @@ class Adv:
 
         if not temp_voice.channel.user_limit:
             self.delete_after = datetime.now() + timedelta(
-                minutes=CONF["adv"]["delete_after_unlimit"]
+                minutes=CFG["adv"]["delete_after_unlimit"]
             )
         elif len(temp_voice.channel.members) >= temp_voice.channel.user_limit:
             self.delete_after = datetime.now() + timedelta(
-                minutes=CONF["adv"]["delete_after_fillment"]
+                minutes=CFG["adv"]["delete_after_fillment"]
             )
         else:
             self.delete_after = None
@@ -103,11 +123,11 @@ class Adv:
                 )
         except (discord.NotFound, discord.HTTPException) as e:
             if isinstance(e, discord.NotFound):
-                await temp_voice.delete_adv()
+                await temp_voice.adv.delete()
             elif e.code == 30046:
                 with suppress(discord.NotFound):
                     await self.delete()
-                    await temp_voice.send_adv(custom_text=self.custom_text)
+                    await temp_voice.adv.send(custom_text=self.custom_text)
             else:
                 raise e
 
@@ -116,8 +136,9 @@ class Adv:
             return False
 
         try:
-            with suppress(discord.NotFound):
-                await self._message.delete()
+            await self._message.delete()
+        except discord.NotFound:
+            pass
         except discord.DiscordServerError as e:
             if e.code == 0:
                 with suppress(discord.NotFound):
@@ -125,6 +146,10 @@ class Adv:
                     await msg.delete()
             else:
                 raise e
+
+        await (TempChannels
+               .filter(dis_id=self.temp_channel_id)
+               .update(dis_adv_msg_id=None))
 
         self._message, self.delete_after, self._update_delayed = (
             None,
@@ -162,7 +187,7 @@ class AdvControlInterface(BaseView):
     )
     async def adv_delete(self, interaction: discord.Interaction, *_):
         self.temp_voice.reminder = False  # Disable reminder
-        await self.temp_voice.delete_adv()
+        await self.temp_voice.adv.delete()
         await interaction.response.edit_message(
             view=None, embed=SuccessEmbed("Объявление было удалено.")
         )
@@ -193,11 +218,11 @@ class AdvEmbed(discord.Embed):
                     f"<:member_white:1176147115282534440> {member.mention}"
                 )
 
-        if users_count > CONF["adv"]["display_users_limit"]:
-            text = text[:CONF["adv"]["display_users_limit"]]
+        if users_count > CFG["adv"]["display_users_limit"]:
+            text = text[:CFG["adv"]["display_users_limit"]]
             text.append(
                 f"...\nИ другие <:member_white:1176147115282534440> "
-                f"{len(text) - CONF["adv"]["display_users_limit"]}"
+                f"{len(text) - CFG["adv"]["display_users_limit"]}"
                 f" пользователей."
             )
 
@@ -206,7 +231,7 @@ class AdvEmbed(discord.Embed):
                 "...\nНеограниченное число <:member_blue:1176147113739026432> "
                 "свободных мест."
             )
-        elif max_users_count - users_count > CONF["adv"]["display_users_limit"]:
+        elif max_users_count - users_count > CFG["adv"]["display_users_limit"]:
             text.append(
                 f"...\nОсталось <:member_blue:1176147113739026432> "
                 f"{max_users_count - users_count} свободных мест."
@@ -263,7 +288,7 @@ class AdvInterface(BaseView):
 
     def check(self, interaction: discord.Interaction) -> utils.TempVoiceABC:
         if server := self.bot.server(interaction.guild_id):
-            temp_channel = server.get_user_channel(
+            temp_channel = server.get_member_tv(
                 interaction.user, interaction.channel_id
             )
             if temp_channel:
@@ -279,7 +304,13 @@ class AdvInterface(BaseView):
             **kwargs,
         ):
             if temp_voice := self.check(interaction):
-                return await func(self, interaction, temp_voice, *args, **kwargs)
+                return await func(
+                    self,
+                    interaction,
+                    temp_voice,
+                    *args,
+                    **kwargs
+                )
             else:
                 raise errors.UserNoTempChannelsError
 

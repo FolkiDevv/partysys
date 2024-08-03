@@ -20,7 +20,7 @@ class Scheduler(services.BaseCog):
                         and temp_voice.adv.delete_after
                         and datetime.now() >= temp_voice.adv.delete_after
                 ):
-                    await temp_voice.delete_adv()
+                    await temp_voice.adv.delete()
 
     @tasks.loop(minutes=1.0)
     async def reminder_sender(self):
@@ -30,7 +30,7 @@ class Scheduler(services.BaseCog):
                         temp_voice.reminder
                         and datetime.now() >= temp_voice.reminder
                 ):
-                    await temp_voice.send_reminder()
+                    await temp_voice.send_reminder(server.adv_channel)
 
     @reminder_sender.before_loop
     async def before_remind_sender(self):

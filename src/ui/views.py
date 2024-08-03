@@ -333,7 +333,7 @@ class PrivacyInterface(BaseView):
 
         if self.select.values[0] != utils.Privacy.PUBLIC:
             # Try to delete active adv if privacy changed to closed
-            await self.temp_voice.delete_adv()
+            await self.temp_voice.adv.delete()
         return True
 
 

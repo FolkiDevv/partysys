@@ -7,7 +7,7 @@ import discord
 from loguru import logger
 from tortoise import Tortoise, run_async
 
-from config import CONF
+from config import CFG
 from src import services
 
 logger.remove(0)
@@ -89,7 +89,7 @@ async def main():
     await Tortoise.generate_schemas()
 
     async with bot:
-        for extension in CONF.get("cogs", []):
+        for extension in CFG.get("cogs", []):
             try:
                 await bot.load_extension(f'src.cogs.{extension}')
                 logger.info(f"Loaded extension {extension}.")
