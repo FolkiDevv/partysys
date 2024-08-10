@@ -28,21 +28,23 @@ class AdvModal(BaseModal):
             required=False,
             max_length=240,
             custom_id="adv:public:modal:text_input",
-            default=temp_voice.adv.custom_text
-            if temp_voice.adv and len(temp_voice.adv.custom_text)
+            default=temp_voice.adv.text
+            if temp_voice.adv and len(temp_voice.adv.text)
             else None,
         )
         self.add_item(self.text_inp)
 
     async def on_submit(self, interaction: discord.Interaction):
         if self.temp_voice.adv:
-            await self.temp_voice.update_adv(custom_text=self.text_inp.value)
+            await self.temp_voice.adv.update(custom_text=self.text_inp.value)
             await interaction.response.edit_message(
                 view=None,
                 embed=SuccessEmbed("Объявление было отредактировано."),
             )
         else:
-            await self.temp_voice.send_adv(custom_text=self.text_inp.value)
+            await self.temp_voice.adv.send(
+                custom_text=self.text_inp.value
+            )
             await interaction.response.send_message(
                 ephemeral=True,
                 embed=SuccessEmbed(
@@ -58,7 +60,7 @@ class AdvModal(BaseModal):
             metrics.incr(
                 "adv_manual_send",
                 1,
-                tags={"server": self.temp_voice.server_id},
+                tags={"server": self.temp_voice.server.id},
             )
 
 

@@ -51,7 +51,7 @@ class BaseView(discord.ui.View):
                     embed=embed,
                     delete_after=10.0,
                 )
-            elif isinstance(error, errors.UserActionError):
+            elif isinstance(error, errors.PartySysException):
                 embed.description = str(error)
                 await interaction.response.send_message(
                     ephemeral=True, embed=embed
@@ -75,7 +75,7 @@ class BaseModal(discord.ui.Modal):
                     "Не можем найти исходное сообщение с интерфейсом."
                 )
                 await interaction.channel.send(embed=embed, delete_after=10.0)
-            elif isinstance(error, errors.UserActionError):
+            elif isinstance(error, errors.PartySysException):
                 embed.description = str(error)
                 await interaction.response.send_message(
                     ephemeral=True, embed=embed

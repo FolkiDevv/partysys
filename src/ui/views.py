@@ -180,7 +180,7 @@ class UnbanInterface(BaseView):
                 view=None,
             )
         else:
-            raise errors.UserActionError(
+            raise errors.PartySysException(
                 "Произошла неизвестная ошибка. Попробуйте снова.\n*Если ошибка "
                 "повторяется - обратитесь в тех.поддержку бота."
             )

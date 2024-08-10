@@ -14,8 +14,8 @@ from .views import (
     GetAccessInterface,
     PrivacyInterface,
     TakeAccessInterface,
+    TransferOwnerInterface,
     UnbanInterface,
-    TransferOwnerInterface
 )
 
 
@@ -176,7 +176,7 @@ class ControlInterface(AdvInterface):
             raise errors.BotNotConfiguredError
 
         if ban_list_raw := await TCBans.filter(
-                server_id=server.server_id,
+                server_id=server.id,
                 dis_creator_id=interaction.user.id,
                 banned=True,
         ):
@@ -209,9 +209,7 @@ class ControlInterface(AdvInterface):
     )
     async def return_owner(self, interaction: discord.Interaction, *_):
         if server := self.bot.server(interaction.guild_id):
-            temp_voice = server.get_member_transferred_tv(
-                interaction.user.id
-            )
+            temp_voice = server.get_member_transferred_tv(interaction.user)
             if temp_voice and temp_voice.owner != temp_voice.creator:
                 if server.get_member_tv(interaction.user):
                     raise errors.UserAlreadyOwnerError

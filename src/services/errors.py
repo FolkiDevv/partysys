@@ -1,8 +1,11 @@
-class UserActionError(Exception):
+import discord.errors
+
+
+class PartySysException(discord.errors.DiscordException):
     ...
 
 
-class BotNotConfiguredError(UserActionError):
+class BotNotConfiguredError(PartySysException):
     def __init__(self):
         super().__init__(
             "На этом сервере еще не настроен бот! Обратитесь к "
@@ -10,7 +13,7 @@ class BotNotConfiguredError(UserActionError):
         )
 
 
-class UnknownDisError(UserActionError):
+class UnknownDisError(PartySysException):
     def __init__(self):
         super().__init__(
             "Произошла неизвестная ошибка со стороны Discord. "
@@ -20,7 +23,7 @@ class UnknownDisError(UserActionError):
         )
 
 
-class UserNoTempChannelsError(UserActionError):
+class UserNoTempChannelsError(PartySysException):
     def __init__(self):
         super().__init__(
             "**У вас нет голосового канала, которым вы можете "
@@ -30,7 +33,7 @@ class UserNoTempChannelsError(UserActionError):
         )
 
 
-class UserUseAlienControlInterfaceError(UserActionError):
+class UserUseAlienControlInterfaceError(PartySysException):
     def __init__(self):
         super().__init__(
             "**Вы пытаетесь использовать интерфейс управления из "
@@ -40,7 +43,7 @@ class UserUseAlienControlInterfaceError(UserActionError):
         )
 
 
-class UserAlreadyOwnerError(UserActionError):
+class UserAlreadyOwnerError(PartySysException):
     def __init__(self):
         super().__init__(
             "Вы уже управляете временным каналом."
@@ -49,29 +52,29 @@ class UserAlreadyOwnerError(UserActionError):
         )
 
 
-class UserNotBannedError(UserActionError):
+class UserNotBannedError(PartySysException):
     def __init__(self):
         super().__init__("Пользователь не в бане.")
 
 
-class NumbersOnlyError(UserActionError):
+class NumbersOnlyError(PartySysException):
     def __init__(self):
         super().__init__("Допускаются только числовые значения!")
 
 
-class NoUsersInChannelError(UserActionError):
+class NoUsersInChannelError(PartySysException):
     def __init__(self):
         super().__init__("В канале нет никого, кроме вас.")
 
 
-class AdvChannelIsFullError(UserActionError):
+class AdvChannelIsFullError(PartySysException):
     def __init__(self):
         super().__init__(
             "Вы не можете дать объявление, когда ваш канал заполнен."
         )
 
 
-class AdvRequirePublicPrivacyError(UserActionError):
+class AdvRequirePublicPrivacyError(PartySysException):
     def __init__(self):
         super().__init__(
             "Чтобы опубликовать/изменить объявление ваш канал "

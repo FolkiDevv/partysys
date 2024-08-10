@@ -14,9 +14,8 @@ from src.services import errors
 
 class TempVoice(utils.TempVoiceABC):
     __slots__ = (
-        "bot",
         "channel",
-        "server_id",
+        "server",
         "creator",
         "owner",
 
@@ -29,22 +28,20 @@ class TempVoice(utils.TempVoiceABC):
     @classmethod
     async def create(
             cls,
-            bot,
             category,
             creator_channel,
             member,
             name_formatter,
-            server_id,
+            server,
     ) -> Self:
         channel = await category.create_voice_channel(
             name=name_formatter(creator_channel.def_name),
             user_limit=creator_channel.def_user_limit,
         )
         temp_voice = cls(
-            bot,
             channel,
             member,
-            server_id,
+            server,
             member,
         )
 
@@ -52,7 +49,7 @@ class TempVoice(utils.TempVoiceABC):
             dis_id=channel.id,
             dis_creator_id=member.id,
             dis_owner_id=member.id,
-            server_id=server_id,
+            server_id=server.id,
         )
 
         try:
@@ -74,7 +71,7 @@ class TempVoice(utils.TempVoiceABC):
 
         # Next get owner ban list and restore them to the new channel
         for raw_ban in await TCBans.filter(
-                server=server_id,
+                server=server.id,
                 dis_creator_id=member.id,
                 banned=True
         ):
@@ -104,7 +101,7 @@ class TempVoice(utils.TempVoiceABC):
     async def invite_url(self):
         if not self._invite_url:
             for inv in await self.channel.invites():
-                if inv.inviter.id == self.bot.user.id:
+                if inv.inviter.id == self.server.bot.user.id:
                     self._invite_url = inv.url
                     return self._invite_url
 
@@ -116,7 +113,7 @@ class TempVoice(utils.TempVoiceABC):
         return self._invite_url
 
     def updated(self):
-        if new_state := self.bot.get_channel(self.channel.id):
+        if new_state := self.server.bot.get_channel(self.channel.id):
             self.channel = new_state
 
         if (
@@ -140,7 +137,7 @@ class TempVoice(utils.TempVoiceABC):
             )
             await self.channel.send(
                 embed=ui.ReminderEmbed(),
-                view=ui.AdvInterface(self.bot),
+                view=ui.AdvInterface(self.server.bot),
                 delete_after=120,
             )  # Notify users in channel that adv sent
         self.reminder = None
@@ -206,7 +203,7 @@ class TempVoice(utils.TempVoiceABC):
 
     async def ban(self, member):
         await TCBans.update_or_create(
-            server_id=self.server_id,
+            server_id=self.server.id,
             dis_creator_id=self.creator.id,
             dis_banned_id=member.id,
             banned=True,
@@ -264,7 +261,7 @@ class TempVoice(utils.TempVoiceABC):
         await self.channel.send(
             embed=ui.ChannelControlEmbed(),
             content=self.owner.mention,
-            view=ui.ControlInterface(self.bot),
+            view=ui.ControlInterface(self.server.bot),
         )
 
     async def delete(self):

@@ -42,7 +42,7 @@ class Controller(services.BaseCog):
                 )
             elif isinstance(error, app_commands.errors.CheckFailure):
                 embed.description = "Вы не можете использовать эту команду."
-            elif isinstance(error, errors.UserActionError):
+            elif isinstance(error, errors.PartySysException):
                 embed.description = str(error)
             elif not isinstance(
                     error, app_commands.errors.CommandInvokeError

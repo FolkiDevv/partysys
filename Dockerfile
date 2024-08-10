@@ -51,4 +51,4 @@ ENV PYTHONFAULTHANDLER=1 \
   PYTHONDONTWRITEBYTECODE=1 \
   PATH="/app/.venv/bin:$PATH"
 
-ENTRYPOINT ["python", "-m", "main"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

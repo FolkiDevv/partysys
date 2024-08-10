@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src import utils
 
-from .server_temp_voices import Server
+from .server import Server
 
 
 class PartySysBot(utils.BotABC):
@@ -14,7 +14,7 @@ class PartySysBot(utils.BotABC):
                 return self.servers[guild_id]
             else:
                 return None
-        elif self.servers[guild_id].server_id:
+        elif self.servers[guild_id].id:
             return self.servers[guild_id]
         else:
             return None

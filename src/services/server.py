@@ -43,7 +43,7 @@ class Server(utils.ServerABC):
         "bot",
         "guild",
 
-        "server_id",
+        "id",
         "adv_channel",
         "_creator_channels",
         "_temp_channels",
@@ -74,7 +74,7 @@ class Server(utils.ServerABC):
             self._creator_channels = MappingProxyType(
                 {channel.dis_id: channel
                  for channel in
-                 await CreatorChannels.filter(server=self.server_id)}
+                 await CreatorChannels.filter(server_id=self.server_id)}
             )
 
     async def update_settings(self):
@@ -110,12 +110,11 @@ class Server(utils.ServerABC):
 
         try:
             temp_voice = await TempVoice.create(
-                self.bot,
                 creator_category,
                 self._creator_channels[creator_channel_id],
                 member,
                 _channel_name_formatter,
-                self.server_id,
+                self,
             )
         except (discord.NotFound, discord.HTTPException):
             return None
@@ -147,18 +146,18 @@ class Server(utils.ServerABC):
             return self._temp_channels[interaction_channel_id]
 
         for temp_channel in self._temp_channels.values():
-            if temp_channel.owner.id == member.id:
+            if temp_channel.owner == member:
                 return temp_channel
         return False
 
-    def get_member_transferred_tv(self, member_id):
+    def get_member_transferred_tv(self, member):
         """
         Try to find user temp voice when user transfer his owner
-        :param member_id:
+        :param member:
         :return:
         """
         for temp_channel in self._temp_channels.values():
-            if temp_channel.creator.id == member_id:
+            if temp_channel.creator == member:
                 return temp_channel
         return False
 
@@ -166,10 +165,7 @@ class Server(utils.ServerABC):
         return self._creator_channels.keys()
 
     def channel(self, channel_id):
-        if channel_id not in self._temp_channels:
-            return None
-
-        return self._temp_channels[channel_id]
+        return self._temp_channels.get(channel_id)
 
     def all_channels(self):
         return self._temp_channels
@@ -179,7 +175,7 @@ class Server(utils.ServerABC):
             channel,
             owner_id,
             creator_id,
-            adv_msg_id,
+            adv_msg_id=None,
     ):
         owner = self.guild.get_member(owner_id)
         creator = (
@@ -189,10 +185,9 @@ class Server(utils.ServerABC):
         )
 
         temp_voice = TempVoice(
-            self.bot,
             channel,
             owner,
-            self.server_id,
+            self,
             creator,
         )
 
@@ -200,9 +195,9 @@ class Server(utils.ServerABC):
         if adv_msg_id:
             with suppress(discord.NotFound):
                 if adv_msg := await self.adv_channel.fetch_message(adv_msg_id):
-                    self._temp_channels[channel.id].adv = ui.Adv(
-                        channel.id,
-                        adv_msg
+                    temp_voice.adv = ui.Adv(
+                        temp_voice,
+                        adv_msg,
                     )
-                    await self._temp_channels[channel.id].adv.update()
-        return self._temp_channels[channel.id]
+                    await temp_voice.adv.update(temp_voice)
+        return temp_voice

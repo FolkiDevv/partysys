@@ -7,7 +7,7 @@ import discord
 from loguru import logger
 from tortoise import Tortoise, run_async
 
-from config import CFG
+from config import TORTOISE_ORM
 from src import services
 
 logger.remove(0)
@@ -80,16 +80,10 @@ async def on_ready():
 
 async def main():
     # Initialize Tortoise
-    await Tortoise.init(
-        db_url=f'mysql://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}'
-               f'@{os.getenv("DB_HOST")}:{os.getenv("DB_PORT")}'
-               f'/{os.getenv("DB_NAME")}',
-        modules={"models": ["src.models"]}
-    )
-    await Tortoise.generate_schemas()
+    await Tortoise.init(config=TORTOISE_ORM)
 
     async with bot:
-        for extension in CFG.get("cogs", []):
+        for extension in os.getenv("COGS", "").split(","):
             try:
                 await bot.load_extension(f'src.cogs.{extension}')
                 logger.info(f"Loaded extension {extension}.")

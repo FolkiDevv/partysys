@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from contextlib import suppress
 from datetime import datetime, timedelta
 
@@ -8,9 +7,9 @@ import discord
 
 from config import CFG
 from src import utils
+from src.models import TempChannels
 from src.services import errors
 
-from ..models import TempChannels
 from .base import BaseView
 from .embeds import InterfaceEmbed, SuccessEmbed
 from .modals import AdvModal
@@ -19,31 +18,28 @@ from .views import JoinInterface
 
 class Adv:
     __slots__ = (
-        "temp_channel_id",
+        "temp_voice",
         "_message",
-        "custom_text",
+        "text",
         "delete_after",
-        "_update_delayed",
     )
 
     def __init__(
             self,
-            temp_channel_id: int,
+            temp_voice: utils.TempVoiceABC,
             msg: discord.Message | None = None
     ):
-        self.temp_channel_id = temp_channel_id
+        self.temp_voice = temp_voice
         self._message = msg
 
-        self.custom_text = ""
+        self.text = ""
         self.delete_after: datetime | None = None
-
-        self._update_delayed = False
 
     def __repr__(self) -> str:
         return (
             f'<{self.__class__.__name__} '
             f'msg={self._message} '
-            f'temp_channel_id={self.temp_channel_id}'
+            f'temp_voice={self.temp_voice}'
             f'>'
         )
 
@@ -52,12 +48,12 @@ class Adv:
 
     # TODO: Добавить адекватную реакцию на ошибки (например, нет прав и т.п.)
     async def send(
-        self,
-        adv_channel: discord.TextChannel,
-        temp_voice: utils.TempVoiceABC,
-        text: str,
+            self,
+            adv_channel: discord.TextChannel,
+            temp_voice: utils.TempVoiceABC,
+            text: str,
     ) -> int:
-        self.custom_text = text
+        self.text = text
 
         if not temp_voice.channel.user_limit:
             # If channel has unlimited slots, adv will be deleted after 3
@@ -67,37 +63,25 @@ class Adv:
             )
 
         self._message = await adv_channel.send(
-            embed=AdvEmbed(temp_voice=temp_voice, text=self.custom_text),
+            embed=AdvEmbed(temp_voice=temp_voice, text=self.text),
             view=JoinInterface(
                 invite_url=await temp_voice.invite_url(),
                 disabled=len(temp_voice.channel.members)
-                >= temp_voice.channel.user_limit,
+                         >= temp_voice.channel.user_limit,
             ),
         )
 
         await (TempChannels
-               .filter(dis_id=self.temp_channel_id)
+               .filter(dis_id=self.temp_voice.channel.id)
                .update(dis_adv_msg_id=self._message.id))
 
         return self._message.id
 
     async def update(
-        self, temp_voice: utils.TempVoiceABC, text: str = ""
+            self, temp_voice: utils.TempVoiceABC, text: str = ""
     ) -> None:
         if text:
-            self.custom_text = text
-        elif self._message is None and not self._update_delayed:
-            # if channel update state while adv sent
-            self._update_delayed = True
-
-            await asyncio.sleep(2.)
-
-            temp_voice.updated()
-            await self.update(temp_voice, text)
-
-            return
-        elif self._update_delayed:
-            self._update_delayed = False
+            self.text = text
 
         if not temp_voice.channel.user_limit:
             self.delete_after = datetime.now() + timedelta(
@@ -115,7 +99,7 @@ class Adv:
             view = JoinInterface(
                 invite_url=await temp_voice.invite_url(),
                 disabled=len(temp_voice.channel.members)
-                >= temp_voice.channel.user_limit
+                         >= temp_voice.channel.user_limit
                 if temp_voice.channel.user_limit > 0
                 else False,
             )
@@ -125,17 +109,17 @@ class Adv:
                 await self._message.edit(
                     embed=AdvEmbed(
                         temp_voice=temp_voice,
-                        text=self.custom_text,
+                        text=self.text,
                     ),
                     view=view,
                 )
-        except (discord.NotFound, discord.HTTPException) as e:
-            if isinstance(e, discord.NotFound):
-                await temp_voice.adv.delete()
-            elif e.code == 30046:
+        except discord.NotFound:
+            await temp_voice.adv.delete()
+        except discord.HTTPException as e:
+            if e.code == 30046:
                 with suppress(discord.NotFound):
                     await self.delete()
-                    await temp_voice.adv.send(custom_text=self.custom_text)
+                    await temp_voice.adv.send(custom_text=self.text)
             else:
                 raise e
 
@@ -156,14 +140,10 @@ class Adv:
                 raise e
 
         await (TempChannels
-               .filter(dis_id=self.temp_channel_id)
+               .filter(dis_id=self.temp_voice.channel.id)
                .update(dis_adv_msg_id=None))
 
-        self._message, self.delete_after, self._update_delayed = (
-            None,
-            None,
-            False,
-        )
+        self._message, self.delete_after = None, None
         return True
 
 
@@ -180,7 +160,7 @@ class AdvControlInterface(BaseView):
     async def adv_public(self, interaction: discord.Interaction, *_):
         if self.temp_voice.privacy == utils.Privacy.PUBLIC:
             if self.temp_voice.channel.user_limit > len(
-                self.temp_voice.channel.members
+                    self.temp_voice.channel.members
             ):
                 await interaction.response.send_modal(
                     AdvModal(self.temp_voice)
@@ -253,7 +233,7 @@ class AdvEmbed(discord.Embed):
         return text
 
     def _gen_text(
-        self, custom_text: str, temp_voice: utils.TempVoiceABC
+            self, custom_text: str, temp_voice: utils.TempVoiceABC
     ) -> None:
         avatar = (
             temp_voice.owner.avatar.url
@@ -295,21 +275,23 @@ class AdvInterface(BaseView):
         super().__init__(bot, timeout=None)
 
     def check(self, interaction: discord.Interaction) -> utils.TempVoiceABC:
-        if server := self.bot.server(interaction.guild_id):
-            temp_channel = server.get_member_tv(
-                interaction.user, interaction.channel_id
-            )
-            if temp_channel:
-                return temp_channel
+        if (
+                (server := self.bot.server(interaction.guild_id))
+                and
+                (temp_channel := server.get_member_tv(
+                    interaction.user, interaction.channel_id
+                ))
+        ):
+            return temp_channel
         raise errors.UserNoTempChannelsError
 
     @staticmethod
     def check_decorator(func):
         async def _wrapper(
-            self: AdvInterface,
-            interaction: discord.Interaction,
-            *args,
-            **kwargs,
+                self: AdvInterface,
+                interaction: discord.Interaction,
+                *args,
+                **kwargs,
         ):
             if temp_voice := self.check(interaction):
                 return await func(
@@ -351,10 +333,10 @@ class AdvInterface(BaseView):
     )
     @check_decorator
     async def adv(
-        self,
-        interaction: discord.Interaction,
-        temp_voice: utils.TempVoiceABC,
-        *_,
+            self,
+            interaction: discord.Interaction,
+            temp_voice: utils.TempVoiceABC,
+            *_,
     ):
         if temp_voice.adv:
             await self.handle_existing_adv(temp_voice, interaction)

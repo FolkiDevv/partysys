@@ -2,7 +2,7 @@ import abc
 import datetime
 from random import sample
 from types import MappingProxyType
-from typing import Callable, NoReturn, Self, final
+from typing import Callable, ClassVar, Literal, NoReturn, Self, final
 
 import discord
 from discord.ext import commands
@@ -17,28 +17,26 @@ from .enums import Privacy
 class TempVoiceABC(abc.ABC):
     def __init__(
             self,
-            bot: 'BotABC',
             channel: discord.VoiceChannel,
             owner: discord.Member,
-            server_id: int,
+            server: 'ServerABC',
             creator: discord.Member | None = None,
     ):
-        self.bot = bot
+        self.server = server
         self.channel = channel
         self.creator = creator if creator else owner
         self.owner = owner
-        self.adv = ui.Adv(channel.id)
+        self.adv = ui.Adv(self)
 
         self.reminder: datetime.datetime | None | False = None
 
         self.privacy: Privacy = Privacy.PUBLIC
         self._invite_url: str | None = None  # Invite link on this channel
-        self.server_id = server_id  # Local server id in DB
 
     def __repr__(self) -> str:
         return (
             f'<{self.__class__.__name__} '
-            f'server_id={self.server_id} '
+            f'server={self.server} '
             f'channel={self.channel} '
             f'creator={self.creator} '
             f'owner={self.owner} '
@@ -50,7 +48,6 @@ class TempVoiceABC(abc.ABC):
     @abc.abstractmethod
     async def create(
             cls,
-            bot: 'BotABC',
             category: discord.CategoryChannel,
             creator_channel: CreatorChannels,
             member: discord.Member,
@@ -131,7 +128,7 @@ class ServerABC(abc.ABC):
         self.bot = bot
         self.guild = guild
 
-        self.server_id: int | None = None  # Server id in DB
+        self.id: int | None = None  # Server id in DB
         self.adv_channel: discord.TextChannel | None = None
         self._creator_channels: MappingProxyType[
             int, CreatorChannels
@@ -149,7 +146,7 @@ class ServerABC(abc.ABC):
     def __repr__(self) -> str:
         return (
             f'<{self.__class__.__name__} '
-            f'server_id={self.server_id} '
+            f'server_id={self.id} '
             f'guild={self.guild} '
             f'>'
         )
@@ -202,15 +199,15 @@ class ServerABC(abc.ABC):
     def get_member_tv(
             self,
             member: discord.Member,
-            interaction_channel_id: int = None
-    ) -> TempVoiceABC | bool:
+            interaction_channel_id: int | None = None
+    ) -> TempVoiceABC | Literal[False]:
         ...
 
     @abc.abstractmethod
     def get_member_transferred_tv(
             self,
-            member_id: int
-    ) -> TempVoiceABC | bool:
+            member_id: discord.Member,
+    ) -> TempVoiceABC | Literal[False]:
         ...
 
     @abc.abstractmethod
@@ -231,14 +228,14 @@ class ServerABC(abc.ABC):
             channel: discord.VoiceChannel,
             owner_id: int,
             creator_id: int,
-            adv_msg_id: int,
+            adv_msg_id: int | None = None,
     ) -> TempVoiceABC:
         ...
 
 
 # Use commands.AutoShardedBot if you have more than 1k guilds
 class BotABC(abc.ABC, commands.Bot):
-    servers: dict[int, ServerABC] = {}
+    servers: ClassVar[dict[int, ServerABC]] = {}
 
     @abc.abstractmethod
     def server(self, guild_id: int) -> ServerABC | None:
