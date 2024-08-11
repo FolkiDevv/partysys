@@ -18,7 +18,6 @@ class TempVoice(utils.TempVoiceABC):
         "server",
         "creator",
         "owner",
-
         "adv",
         "reminder",
         "privacy",
@@ -27,12 +26,12 @@ class TempVoice(utils.TempVoiceABC):
 
     @classmethod
     async def create(
-            cls,
-            category,
-            creator_channel,
-            member,
-            name_formatter,
-            server,
+        cls,
+        category,
+        creator_channel,
+        member,
+        name_formatter,
+        server,
     ) -> Self:
         channel = await category.create_voice_channel(
             name=name_formatter(creator_channel.def_name),
@@ -71,9 +70,7 @@ class TempVoice(utils.TempVoiceABC):
 
         # Next get owner ban list and restore them to the new channel
         for raw_ban in await TCBans.filter(
-                server=server.id,
-                dis_creator_id=member.id,
-                banned=True
+            server=server.id, dis_creator_id=member.id, banned=True
         ):
             if banned_member := channel.guild.get_member(raw_ban.dis_banned_id):
                 overwrites[banned_member] = discord.PermissionOverwrite(
@@ -87,9 +84,7 @@ class TempVoice(utils.TempVoiceABC):
 
         try:
             overwrites.update(channel.overwrites)
-            await channel.edit(
-                overwrites=overwrites, reason="Set permissions"
-            )
+            await channel.edit(overwrites=overwrites, reason="Set permissions")
 
             await temp_voice.send_interface()
         except (discord.NotFound, discord.HTTPException) as err:
@@ -117,38 +112,26 @@ class TempVoice(utils.TempVoiceABC):
             self.channel = new_state
 
         if (
-                self.privacy == utils.Privacy.PUBLIC
-                and not self.adv
-                and self.reminder is not False
-                and self.channel.user_limit > len(self.channel.members)
+            self.privacy == utils.Privacy.PUBLIC
+            and not self.adv
+            and self.reminder is not False
+            and self.channel.user_limit > len(self.channel.members)
         ):
             self.reminder = datetime.now() + timedelta(
-                minutes=CFG['before_auto_pub']
+                minutes=CFG["before_auto_pub"]
             )
         elif self.reminder:
             self.reminder = None
 
     async def send_reminder(self, adv_channel):
         if self.privacy == utils.Privacy.PUBLIC and not self.adv:
-            await self.adv.send(
-                adv_channel,
-                self,
-                "",
-            )
+            await self.adv.send("")
             await self.channel.send(
                 embed=ui.ReminderEmbed(),
                 view=ui.AdvInterface(self.server.bot),
                 delete_after=120,
             )  # Notify users in channel that adv sent
         self.reminder = None
-
-    def _update(
-            self,
-            channel,
-            creator,
-            owner,
-    ):
-        self.channel, self.creator, self.owner = channel, creator, owner
 
     async def change_owner(self, new_owner):
         self.owner = new_owner
@@ -161,9 +144,9 @@ class TempVoice(utils.TempVoiceABC):
                 move_members=True,  # deafen_members=True,
             ),
         )  # Get temp voice new owner permissions
-        await (TempChannels
-               .filter(dis_id=self.channel.id)
-               .update(dis_owner_id=new_owner.id))
+        await TempChannels.filter(dis_id=self.channel.id).update(
+            dis_owner_id=new_owner.id
+        )
 
     async def get_access(self, member):
         await self.channel.set_permissions(
@@ -178,9 +161,9 @@ class TempVoice(utils.TempVoiceABC):
 
     async def kick(self, member):
         if (
-                member.voice
-                and member.voice.channel
-                and member.voice.channel == self.channel
+            member.voice
+            and member.voice.channel
+            and member.voice.channel == self.channel
         ):
             await member.move_to(channel=None, reason="Kicked by channel owner")
 
@@ -271,8 +254,6 @@ class TempVoice(utils.TempVoiceABC):
             )
             await self.adv.delete()
 
-            await (
-                TempChannels
-                .filter(dis_id=self.channel.id)
-                .update(deleted=True)
+            await TempChannels.filter(dis_id=self.channel.id).update(
+                deleted=True
             )

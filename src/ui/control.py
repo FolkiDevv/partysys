@@ -25,9 +25,9 @@ class ControlInterface(AdvInterface):
         self.bot = bot
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.channel_id != self.check(
-                interaction
-        ).channel.id and self.bot.server(interaction.guild_id).channel(
+        if interaction.channel_id != (
+            await self.check(interaction)
+        ).channel.id and (await self.bot.server(interaction.guild_id)).channel(
             interaction.channel_id
         ):
             raise errors.UserUseAlienControlInterfaceError
@@ -40,10 +40,10 @@ class ControlInterface(AdvInterface):
     )
     @AdvInterface.check_decorator
     async def rename(
-            self,
-            interaction: discord.Interaction,
-            temp_voice: utils.TempVoiceABC,
-            *_,
+        self,
+        interaction: discord.Interaction,
+        temp_voice: utils.TempVoiceABC,
+        *_,
     ):
         await interaction.response.send_modal(
             RenameModal(self.bot, temp_voice.channel.name)
@@ -56,8 +56,10 @@ class ControlInterface(AdvInterface):
     )
     @AdvInterface.check_decorator
     async def limit(
-            self, interaction: discord.Interaction,
-            temp_voice: utils.TempVoiceABC, *_
+        self,
+        interaction: discord.Interaction,
+        temp_voice: utils.TempVoiceABC,
+        *_,
     ):
         await interaction.response.send_modal(
             LimitModal(self.bot, temp_voice.channel.user_limit)
@@ -70,8 +72,10 @@ class ControlInterface(AdvInterface):
     )
     @AdvInterface.check_decorator
     async def privacy(
-            self, interaction: discord.Interaction,
-            temp_voice: utils.TempVoiceABC, *_
+        self,
+        interaction: discord.Interaction,
+        temp_voice: utils.TempVoiceABC,
+        *_,
     ):
         await interaction.response.send_message(
             ephemeral=True,
@@ -79,16 +83,16 @@ class ControlInterface(AdvInterface):
             embed=InterfaceEmbed(
                 title="Изменение приватности",
                 text="🔓 Публичный - все пользователи могут "
-                     "присоединяться/видеть ваш канал."
-                     "\n🔒 Закрытый - присоединиться смогут только те "
-                     "пользователи, которым вы "
-                     "<:get_access:1174291352339623956>"
-                     "Разрешите.\n"
-                     "🔐 Скрытый - аналогичен Закрытому, однако в этом случае "
-                     "пользователи,"
-                     "которым вы не <:get_access:1174291352339623956> "
-                     "Разрешали не"
-                     "смогут видеть ваш канал.",
+                "присоединяться/видеть ваш канал."
+                "\n🔒 Закрытый - присоединиться смогут только те "
+                "пользователи, которым вы "
+                "<:get_access:1174291352339623956>"
+                "Разрешите.\n"
+                "🔐 Скрытый - аналогичен Закрытому, однако в этом случае "
+                "пользователи,"
+                "которым вы не <:get_access:1174291352339623956> "
+                "Разрешали не"
+                "смогут видеть ваш канал.",
             ),
         )
 
@@ -105,9 +109,9 @@ class ControlInterface(AdvInterface):
             embed=InterfaceEmbed(
                 title="Разрешить просматривать/подключаться к каналу",
                 text="Выбранные пользователи смогут "
-                     "присоединяться/просматривать ваш канал"
-                     "(используйте, если режим приватности вашего канала не "
-                     "Публичный).",
+                "присоединяться/просматривать ваш канал"
+                "(используйте, если режим приватности вашего канала не "
+                "Публичный).",
             ),
         )
 
@@ -124,8 +128,8 @@ class ControlInterface(AdvInterface):
             embed=InterfaceEmbed(
                 title="Запретить просматривать/подключаться к каналу",
                 text="Выбранные пользователи НЕ смогут "
-                     "присоединяться/просматривать ваш канал"
-                     "(вне зависимости от выбранных настроек приватности).",
+                "присоединяться/просматривать ваш канал"
+                "(вне зависимости от выбранных настроек приватности).",
             ),
         )
 
@@ -142,7 +146,7 @@ class ControlInterface(AdvInterface):
             embed=WarningEmbed(
                 "Воспользуйтесь встроенным функционалом Discord:"
                 "\n**Нажмите ПКМ по пользователю в Вашем канале -> Отключить**"
-            )
+            ),
         )
 
     @discord.ui.button(
@@ -157,9 +161,9 @@ class ControlInterface(AdvInterface):
             embed=InterfaceEmbed(
                 title="Забанить пользователя",
                 text="Выбранный пользователь будет отключен от текущего "
-                     "голосового канала"
-                     "и не сможет просматривать/подключаться к вашим "
-                     "ново-созданным каналам.",
+                "голосового канала"
+                "и не сможет просматривать/подключаться к вашим "
+                "ново-созданным каналам.",
             ),
         )
 
@@ -168,29 +172,23 @@ class ControlInterface(AdvInterface):
         custom_id="unban",
         row=2,
     )
-    async def unban(
-            self, interaction: discord.Interaction, *_
-    ):
-        server = self.bot.server(interaction.guild_id)
+    async def unban(self, interaction: discord.Interaction, *_):
+        server = await self.bot.server(interaction.guild_id)
         if not server:
             raise errors.BotNotConfiguredError
 
         if ban_list_raw := await TCBans.filter(
-                server_id=server.id,
-                dis_creator_id=interaction.user.id,
-                banned=True,
+            server_id=server.id,
+            dis_creator_id=interaction.user.id,
+            banned=True,
         ):
             await interaction.response.send_message(
                 ephemeral=True,
-                view=UnbanInterface(
-                    self.bot,
-                    interaction.guild,
-                    ban_list_raw
-                ),
+                view=UnbanInterface(self.bot, interaction.guild, ban_list_raw),
                 embed=InterfaceEmbed(
                     title="Разбанить пользователя",
                     text="Выбранный пользователь будет убран с вашего "
-                         "бан-листа.",
+                    "бан-листа.",
                 ),
             )
         else:
@@ -208,7 +206,7 @@ class ControlInterface(AdvInterface):
         row=2,
     )
     async def return_owner(self, interaction: discord.Interaction, *_):
-        if server := self.bot.server(interaction.guild_id):
+        if server := await self.bot.server(interaction.guild_id):
             temp_voice = server.get_member_transferred_tv(interaction.user)
             if temp_voice and temp_voice.owner != temp_voice.creator:
                 if server.get_member_tv(interaction.user):
@@ -244,11 +242,11 @@ class ControlInterface(AdvInterface):
             embed=InterfaceEmbed(
                 title="Передать права на управление каналом",
                 text="Выбранный пользователь получит ваши права на "
-                     "управление каналом "
-                     "и вы больше не сможете им управлять, пока не вернете их "
-                     "себе.",
+                "управление каналом "
+                "и вы больше не сможете им управлять, пока не вернете их "
+                "себе.",
             ),
-            view=TransferOwnerInterface(self.bot)
+            view=TransferOwnerInterface(self.bot),
         )
 
     @discord.ui.button(
@@ -258,9 +256,11 @@ class ControlInterface(AdvInterface):
     )
     @AdvInterface.check_decorator
     async def del_channel(
-            self, interaction: discord.Interaction,
-            temp_voice: utils.TempVoiceABC, *_
+        self,
+        interaction: discord.Interaction,
+        temp_voice: utils.TempVoiceABC,
+        *_,
     ):
-        await self.bot.server(interaction.guild_id).del_channel(
+        await (await self.bot.server(interaction.guild_id)).del_channel(
             temp_voice.channel.id
         )

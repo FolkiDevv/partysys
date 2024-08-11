@@ -28,10 +28,10 @@ def bot(mocker: MockFixture) -> PartySysBot:
 
 
 @pytest.fixture
-def server(mocker: MockFixture, bot) -> Server:
-    mocker.patch.dict('config.CFG', {'squad_names': []})
+async def server(mocker: MockFixture, bot) -> Server:
+    mocker.patch.dict("config.CFG", {"squad_names": []})
 
-    return Server.new(
+    return await Server.new(
         bot=bot,
         guild=mocker.AsyncMock(spec=discord.Guild),
     )
@@ -40,23 +40,22 @@ def server(mocker: MockFixture, bot) -> Server:
 @pytest.mark.asyncio
 async def test_update_settings(mocker: MockFixture, server):
     mock_get_or_none = mocker.patch(
-        'src.models.Servers.get_or_none',
+        "src.models.Servers.get_or_none",
         new_callable=mocker.AsyncMock,
         return_value=mocker.Mock(
             id=1,
             dis_adv_channel_id=1,
-        )
+        ),
     )
 
     mock_filter = mocker.patch(
-        'src.models.CreatorChannels.filter',
+        "src.models.CreatorChannels.filter",
         new_callable=mocker.AsyncMock,
-        return_value=[mocker.Mock(dis_id=1)]
+        return_value=[mocker.Mock(dis_id=1)],
     )
 
     mock_get_channel = mocker.patch(
-        'src.services.PartySysBot.get_channel',
-        return_value=mocker.Mock(id=1)
+        "src.services.PartySysBot.get_channel", return_value=mocker.Mock(id=1)
     )
 
     await server._update_settings(guild_id=1)
@@ -65,7 +64,7 @@ async def test_update_settings(mocker: MockFixture, server):
     mock_filter.assert_called_once_with(server_id=1)
     mock_get_channel.assert_called_once_with(1)
     assert server.adv_channel.id == 1
-    assert server.server_id == 1
+    assert server.id == 1
     assert len(server._creator_channels) == 1
     assert server._creator_channels[1].dis_id == 1
 
@@ -76,20 +75,17 @@ async def test_create_channel(mocker: MockFixture, server):
         {1: mocker.Mock(dis_category_id=1)}
     )
     mock_get_channel = mocker.patch(
-        'src.services.PartySysBot.get_channel',
-        return_value=mocker.Mock(spec=discord.CategoryChannel)
+        "src.services.PartySysBot.get_channel",
+        return_value=mocker.Mock(spec=discord.CategoryChannel),
     )
     mock_temp_voice_create = mocker.patch(
-        'src.services.temp_voice.TempVoice.create',
+        "src.services.temp_voice.TempVoice.create",
         return_value=mocker.Mock(
             channel=mocker.Mock(id=1, spec=discord.VoiceChannel)
-        )
+        ),
     )
 
-    res = await server.create_channel(
-        mocker.Mock(display_name='test'),
-        1
-    )
+    res = await server.create_channel(mocker.Mock(display_name="test"), 1)
 
     assert isinstance(res, discord.VoiceChannel)
     assert res.id == 1
@@ -104,7 +100,7 @@ async def test_delete_channel(mocker: MockFixture, server):
     temp_channel = mocker.AsyncMock(id=1)
     server._temp_channels = {1: temp_channel}
 
-    mocker.patch('src.services.TempVoice.delete')
+    mocker.patch("src.services.TempVoice.delete")
 
     await server.del_channel(1)
 
@@ -132,10 +128,7 @@ async def test_get_member_tv_admin(mocker: MockFixture, server):
         guild_permissions=mocker.Mock(administrator=True),
         spec=discord.Member,
     )
-    temp_channel = mocker.AsyncMock(
-        id=11,
-        owner=mocker.Mock(id=3)
-    )
+    temp_channel = mocker.AsyncMock(id=11, owner=mocker.Mock(id=3))
     server._temp_channels = {11: temp_channel}
 
     assert server.get_member_tv(member, 11)
@@ -171,21 +164,15 @@ async def test_channel(mocker: MockFixture, server):
 @pytest.mark.asyncio
 async def test_restore_channel_without_adv(mocker: MockFixture, server):
     server.guild.get_member.return_value = mocker.Mock(
-        id=1,
-        spec=discord.Member
+        id=1, spec=discord.Member
     )
     mock_fetch_message = mocker.patch(
-        'discord.abc.Messageable.fetch_message',
+        "discord.abc.Messageable.fetch_message",
     )
-    mock_adv_update = mocker.patch('src.ui.adv.Adv.update')
+    mock_adv_update = mocker.patch("src.ui.adv.Adv.update")
     channel = mocker.Mock(id=1)
 
-    res = await server.restore_channel(
-        channel,
-        1,
-        1,
-        0
-    )
+    res = await server.restore_channel(channel, 1, 1, 0)
 
     mock_fetch_message.assert_not_called()
     mock_adv_update.assert_not_called()
@@ -197,19 +184,13 @@ async def test_restore_channel_without_adv(mocker: MockFixture, server):
 @pytest.mark.asyncio
 async def test_restore_channel_with_adv(mocker: MockFixture, server):
     server.guild.get_member.return_value = mocker.Mock(
-        id=1,
-        spec=discord.Member
+        id=1, spec=discord.Member
     )
     server.adv_channel = mocker.AsyncMock(id=11)
-    mock_adv_update = mocker.patch('src.ui.adv.Adv.update')
+    mock_adv_update = mocker.patch("src.ui.adv.Adv.update")
     channel = mocker.Mock(id=1)
 
-    res = await server.restore_channel(
-        channel,
-        1,
-        1,
-        11
-    )
+    res = await server.restore_channel(channel, 1, 1, 11)
 
     mock_adv_update.assert_called_once_with(res)
     assert isinstance(res, TempVoiceABC)

@@ -45,7 +45,7 @@ class InterceptHandler(logging.Handler):
         # Find caller from where originated the logged message.
         frame, depth = inspect.currentframe(), 0
         while frame and (
-                depth == 0 or frame.f_code.co_filename == logging.__file__
+            depth == 0 or frame.f_code.co_filename == logging.__file__
         ):
             frame = frame.f_back
             depth += 1
@@ -85,7 +85,7 @@ async def main():
     async with bot:
         for extension in os.getenv("COGS", "").split(","):
             try:
-                await bot.load_extension(f'src.cogs.{extension}')
+                await bot.load_extension(f"src.cogs.{extension}")
                 logger.info(f"Loaded extension {extension}.")
             except Exception as e:
                 logger.error(e)

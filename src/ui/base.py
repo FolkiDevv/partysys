@@ -19,7 +19,7 @@ class BaseView(discord.ui.View):
         self.temp_voice: utils.TempVoiceABC | None = None
 
     async def interaction_check(self, interaction: Interaction) -> bool:
-        self.server = self.bot.server(interaction.guild_id)
+        self.server = await self.bot.server(interaction.guild_id)
         if not self.server:
             raise errors.BotNotConfiguredError
 
@@ -33,10 +33,10 @@ class BaseView(discord.ui.View):
         return True
 
     async def on_error(
-            self,
-            interaction: discord.Interaction,
-            error: Exception,
-            item: discord.ui.Item,
+        self,
+        interaction: discord.Interaction,
+        error: Exception,
+        item: discord.ui.Item,
     ):
         error = getattr(error, "original", error)
 

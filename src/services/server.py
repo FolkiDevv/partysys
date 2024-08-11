@@ -42,15 +42,12 @@ class Server(utils.ServerABC):
     __slots__ = (
         "bot",
         "guild",
-
         "id",
         "adv_channel",
         "_creator_channels",
         "_temp_channels",
-
         "_random_names",
         "_random_names_index",
-
         "_last_data_update",
     )
 
@@ -65,21 +62,24 @@ class Server(utils.ServerABC):
     async def _update_settings(self, guild_id):
         # TODO: адекватная обработка случая когда сервера нет в БД
         if server := await Servers.get_or_none(dis_id=guild_id):
-            self.server_id = server.id
-            self.adv_channel = self.bot.get_channel(
-                server.dis_adv_channel_id
-            )
+            self.id = server.id
+            self.adv_channel = self.bot.get_channel(server.dis_adv_channel_id)
             self._last_data_update = datetime.datetime.now()
 
             self._creator_channels = MappingProxyType(
-                {channel.dis_id: channel
-                 for channel in
-                 await CreatorChannels.filter(server_id=self.server_id)}
+                {
+                    channel.dis_id: channel
+                    for channel in await CreatorChannels.filter(
+                        server_id=self.id
+                    )
+                }
             )
 
     async def update_settings(self):
-        if (datetime.datetime.now() - self._last_data_update
-                >= datetime.timedelta(seconds=10)):
+        if (
+            datetime.datetime.now() - self._last_data_update
+            >= datetime.timedelta(seconds=10)
+        ):
             await self._update_settings(self.guild.id)
 
     async def del_channel(self, channel_id):
@@ -87,8 +87,7 @@ class Server(utils.ServerABC):
             try:
                 await self._temp_channels[channel_id].delete()
             finally:
-                if channel_id in self._temp_channels:
-                    del self._temp_channels[channel_id]
+                del self._temp_channels[channel_id]
 
     async def create_channel(self, member, creator_channel_id):
         if creator_channel_id not in self._creator_channels:
@@ -127,9 +126,11 @@ class Server(utils.ServerABC):
             tags={"server": self.guild.id},
         )
 
-        return temp_voice.channel \
-            if temp_voice.channel.id in self._temp_channels \
+        return (
+            temp_voice.channel
+            if temp_voice.channel.id in self._temp_channels
             else None
+        )
 
     def is_creator_channel(self, channel_id):
         return channel_id in self._creator_channels
@@ -139,9 +140,9 @@ class Server(utils.ServerABC):
 
     def get_member_tv(self, member, interaction_channel_id=None):
         if (
-                interaction_channel_id
-                and member.guild_permissions.administrator
-                and interaction_channel_id in self._temp_channels
+            interaction_channel_id
+            and member.guild_permissions.administrator
+            and interaction_channel_id in self._temp_channels
         ):
             return self._temp_channels[interaction_channel_id]
 
@@ -171,11 +172,11 @@ class Server(utils.ServerABC):
         return self._temp_channels
 
     async def restore_channel(
-            self,
-            channel,
-            owner_id,
-            creator_id,
-            adv_msg_id=None,
+        self,
+        channel,
+        owner_id,
+        creator_id,
+        adv_msg_id=None,
     ):
         owner = self.guild.get_member(owner_id)
         creator = (
@@ -199,5 +200,5 @@ class Server(utils.ServerABC):
                         temp_voice,
                         adv_msg,
                     )
-                    await temp_voice.adv.update(temp_voice)
+                    await temp_voice.adv.update()
         return temp_voice

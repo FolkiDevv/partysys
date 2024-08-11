@@ -21,7 +21,7 @@ class TempVoiceSlashCommands(services.BaseCog):
     )
     @app_commands.default_permissions(administrator=True)
     async def adv_guide(self, interaction: discord.Interaction):
-        server = self.bot.server(interaction.guild_id)
+        server = await self.bot.server(interaction.guild_id)
         if not server:
             raise errors.BotNotConfiguredError
 
@@ -77,7 +77,7 @@ class TempVoiceSlashCommands(services.BaseCog):
     )
     @app_commands.default_permissions(administrator=True)
     async def control_interface(self, interaction: discord.Interaction):
-        server = self.bot.server(interaction.guild_id)
+        server = await self.bot.server(interaction.guild_id)
         if not server:
             raise errors.BotNotConfiguredError
 

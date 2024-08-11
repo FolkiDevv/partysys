@@ -36,15 +36,13 @@ class AdvModal(BaseModal):
 
     async def on_submit(self, interaction: discord.Interaction):
         if self.temp_voice.adv:
-            await self.temp_voice.adv.update(custom_text=self.text_inp.value)
+            await self.temp_voice.adv.update(self.text_inp.value)
             await interaction.response.edit_message(
                 view=None,
                 embed=SuccessEmbed("Объявление было отредактировано."),
             )
         else:
-            await self.temp_voice.adv.send(
-                custom_text=self.text_inp.value
-            )
+            await self.temp_voice.adv.send(self.text_inp.value)
             await interaction.response.send_message(
                 ephemeral=True,
                 embed=SuccessEmbed(
@@ -82,7 +80,7 @@ class LimitModal(BaseModal):
         self.add_item(self.text_inp)
 
     async def on_submit(self, interaction: discord.Interaction):
-        if server := self.bot.server(interaction.guild_id):
+        if server := await self.bot.server(interaction.guild_id):
             if temp_voice := server.get_member_tv(interaction.user):
                 if not self.text_inp.value or self.text_inp.value == "0":
                     await temp_voice.channel.edit(user_limit=0)
@@ -131,7 +129,7 @@ class RenameModal(BaseModal):
         self.add_item(self.text_inp)
 
     async def on_submit(self, interaction: discord.Interaction):
-        if server := self.bot.server(interaction.guild_id):
+        if server := await self.bot.server(interaction.guild_id):
             if temp_voice := server.get_member_tv(interaction.user):
                 await temp_voice.channel.edit(name=self.text_inp.value)
                 await interaction.response.send_message(
