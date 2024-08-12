@@ -51,4 +51,5 @@ ENV PYTHONFAULTHANDLER=1 \
   PYTHONDONTWRITEBYTECODE=1 \
   PATH="/app/.venv/bin:$PATH"
 
+RUN chmod +x docker-entrypoint.sh
 ENTRYPOINT ["./docker-entrypoint.sh"]
