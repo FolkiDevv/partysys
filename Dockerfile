@@ -39,7 +39,7 @@ RUN addgroup --gid 1001 --system app && \
 WORKDIR /app
 
 # Copy installed dependencies from the builder image
-COPY --from=builder /app /app
+COPY --from=builder --chown=app /app /app
 
 # Switch to the app user
 USER app
