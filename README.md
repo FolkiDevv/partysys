@@ -11,6 +11,10 @@ English | [Русский](./README_RU.md)
 
 This is [Discord](https://discord.com) bot with a system of temporary voice channels and live adverts for them.
 
+> [!NOTE]
+> The project is under development and currently does not have any interface
+> to manage settings in the database. All settings must be set manually.
+
 ## Installing
 
 **Python 3.12 or higher is required**
