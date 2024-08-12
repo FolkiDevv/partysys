@@ -10,15 +10,15 @@ from src.models import TCBans
 from src.services import errors
 
 from .base import BaseView
-from .embeds import SuccessEmbed
+from .embeds import InfoEmbed, SuccessEmbed
 
 
 class KickInterface(BaseView):
     def __init__(
-            self,
-            bot: utils.BotABC,
-            users: list[discord.Member],
-            owner: discord.Member,
+        self,
+        bot: utils.BotABC,
+        users: list[discord.Member],
+        owner: discord.Member,
     ):
         super().__init__(bot)
 
@@ -70,8 +70,7 @@ class TransferOwnerInterface(BaseView):
         placeholder="Кому передаем права на управления?",
     )
     async def select_callback(
-            self, interaction: discord.Interaction,
-            select: discord.ui.UserSelect
+        self, interaction: discord.Interaction, select: discord.ui.UserSelect
     ):
         await super().interaction_check(interaction)
 
@@ -87,9 +86,12 @@ class TransferOwnerInterface(BaseView):
             view=None,
         )
         await self.temp_voice.channel.send(
-            content=f"<:info:1177314633124696165> "
-                    f"{select.values[0].mention} вам были переданы "
-                    f"права на управления данным каналом."
+            content=select.values[0].mention,
+            embed=InfoEmbed(
+                "Переданы права на управление этим каналом",
+                f"{select.values[0].mention} теперь"
+                f" управляет этим каналом.",
+            ),
         )
 
         metrics.incr(
@@ -111,8 +113,7 @@ class BanInterface(BaseView):
         placeholder="Кого баним?",
     )
     async def select_callback(
-            self, interaction: discord.Interaction,
-            select: discord.ui.UserSelect
+        self, interaction: discord.Interaction, select: discord.ui.UserSelect
     ):
         await super().interaction_check(interaction)
 
@@ -138,10 +139,10 @@ class BanInterface(BaseView):
 
 class UnbanInterface(BaseView):
     def __init__(
-            self,
-            bot: utils.BotABC,
-            guild: discord.Guild,
-            ban_list_raw: list[TCBans],
+        self,
+        bot: utils.BotABC,
+        guild: discord.Guild,
+        ban_list_raw: list[TCBans],
     ):
         super().__init__(bot)
 
@@ -152,11 +153,11 @@ class UnbanInterface(BaseView):
             user = guild.get_member(ban.dis_banned_id)
             if user:
                 self.select_user.add_option(
-                    label=f'{user.display_name} (ID: {user.id})', value=ban.id
+                    label=f"{user.display_name} (ID: {user.id})", value=ban.id
                 )
             else:
                 self.select_user.add_option(
-                    label=f'ID: {ban.dis_banned_id}', value=ban.id
+                    label=f"ID: {ban.dis_banned_id}", value=ban.id
                 )
 
         self.add_item(self.select_user)
@@ -164,14 +165,10 @@ class UnbanInterface(BaseView):
     async def interaction_check(self, interaction: discord.Interaction):
         await super().interaction_check(interaction)
 
-        unbanned = await self.temp_voice.unban(
-            int(self.select_user.values[0])
-        )
+        unbanned = await self.temp_voice.unban(int(self.select_user.values[0]))
         if unbanned == 1:
             await interaction.response.edit_message(
-                embed=SuccessEmbed(
-                    f"Бан #{self.select_user.values[0]} снят."
-                ),
+                embed=SuccessEmbed(f"Бан #{self.select_user.values[0]} снят."),
                 view=None,
             )
         elif unbanned:
@@ -205,8 +202,7 @@ class TakeAccessInterface(BaseView):
         placeholder="Кому запрещаем подключаться?",
     )
     async def select_callback(
-            self, interaction: discord.Interaction,
-            select: discord.ui.UserSelect
+        self, interaction: discord.Interaction, select: discord.ui.UserSelect
     ):
         await super().interaction_check(interaction)
 
@@ -221,9 +217,9 @@ class TakeAccessInterface(BaseView):
                 "просмотр вашего канала:\n"
                 + "\n".join(mentions)
                 + "\n\n*P.s. Применяется только к текущему каналу, "
-                  'используйте "Забанить", '
-                  "чтобы запретить пользователям подключаться и к "
-                  "будущем вашим каналам.*"
+                'используйте "Забанить", '
+                "чтобы запретить пользователям подключаться и к "
+                "будущем вашим каналам.*"
             ),
             view=None,
         )
@@ -248,8 +244,7 @@ class GetAccessInterface(BaseView):
         placeholder="Кому разрешаем подключаться?",
     )
     async def select_callback(
-            self, interaction: discord.Interaction,
-            select: discord.ui.UserSelect
+        self, interaction: discord.Interaction, select: discord.ui.UserSelect
     ):
         await super().interaction_check(interaction)
 
@@ -288,7 +283,7 @@ class PrivacyInterface(BaseView):
                     emoji="🔓",
                     default=privacy == utils.Privacy.PUBLIC,
                     description="Любой желающий сможет присоединиться к вашему "
-                                "каналу.",
+                    "каналу.",
                 ),
                 discord.SelectOption(
                     label="Закрытый",
@@ -296,7 +291,7 @@ class PrivacyInterface(BaseView):
                     emoji="🔒",
                     default=privacy == utils.Privacy.PRIVATE,
                     description="Все будут видеть ваш канал, но присоединиться "
-                                "могут только пользователи с разрешением.",
+                    "могут только пользователи с разрешением.",
                 ),
                 discord.SelectOption(
                     label="Скрытый",
@@ -304,7 +299,7 @@ class PrivacyInterface(BaseView):
                     emoji="🔐",
                     default=privacy == utils.Privacy.HIDDEN,
                     description='Аналогичен режиму "Закрытый", однако '
-                                "посторонние не смогут видеть данный канал.",
+                    "посторонние не смогут видеть данный канал.",
                 ),
             ],
             custom_id="privacy:select",

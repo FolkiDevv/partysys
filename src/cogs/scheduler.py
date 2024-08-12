@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from discord.ext import tasks
+from loguru import logger
 
 from src import services
 
@@ -16,20 +17,21 @@ class Scheduler(services.BaseCog):
         for server in self.bot.servers.copy().values():
             for temp_voice in server.all_channels().values():
                 if (
-                        temp_voice.adv
-                        and temp_voice.adv.delete_after
-                        and datetime.now() >= temp_voice.adv.delete_after
+                    temp_voice.adv
+                    and temp_voice.adv.delete_after
+                    and datetime.now() >= temp_voice.adv.delete_after
                 ):
                     await temp_voice.adv.delete()
 
     @tasks.loop(minutes=1.0)
     async def reminder_sender(self):
-        for server in self.bot.servers.copy().values():
+        for server in list(self.bot.servers.values()):
             for temp_voice in list(server.all_channels().values()):
                 if (
-                        temp_voice.reminder
-                        and datetime.now() >= temp_voice.reminder
+                    temp_voice.reminder
+                    and datetime.now() >= temp_voice.reminder
                 ):
+                    logger.debug(f"Sending reminder to {temp_voice.channel.id}")
                     await temp_voice.send_reminder(server.adv_channel)
 
     @reminder_sender.before_loop

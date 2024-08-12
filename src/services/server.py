@@ -83,10 +83,10 @@ class Server(utils.ServerABC):
             await self._update_settings(self.guild.id)
 
     async def del_channel(self, channel_id):
-        if channel_id in self._temp_channels:
-            try:
-                await self._temp_channels[channel_id].delete()
-            finally:
+        try:
+            await self._temp_channels[channel_id].delete()
+        finally:
+            if channel_id in self._temp_channels:
                 del self._temp_channels[channel_id]
 
     async def create_channel(self, member, creator_channel_id):

@@ -44,6 +44,10 @@ class TempVoice(utils.TempVoiceABC):
             member,
         )
 
+        temp_voice.reminder = datetime.now() + timedelta(
+            minutes=CFG["adv"]["before_auto_pub"]
+        )
+
         await TempChannels.create(
             dis_id=channel.id,
             dis_creator_id=member.id,
@@ -118,7 +122,7 @@ class TempVoice(utils.TempVoiceABC):
             and self.channel.user_limit > len(self.channel.members)
         ):
             self.reminder = datetime.now() + timedelta(
-                minutes=CFG["before_auto_pub"]
+                minutes=CFG["adv"]["before_auto_pub"]
             )
         elif self.reminder:
             self.reminder = None
@@ -254,6 +258,4 @@ class TempVoice(utils.TempVoiceABC):
             )
             await self.adv.delete()
 
-            await TempChannels.filter(dis_id=self.channel.id).update(
-                deleted=True
-            )
+            await TempChannels.filter(dis_id=self.channel.id).delete()

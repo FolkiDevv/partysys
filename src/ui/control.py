@@ -7,7 +7,13 @@ from src.models import TCBans
 from src.services import errors
 
 from .adv import AdvInterface
-from .embeds import ErrorEmbed, InterfaceEmbed, SuccessEmbed, WarningEmbed
+from .embeds import (
+    ErrorEmbed,
+    InfoEmbed,
+    InterfaceEmbed,
+    SuccessEmbed,
+    WarningEmbed,
+)
 from .modals import LimitModal, RenameModal
 from .views import (
     BanInterface,
@@ -212,9 +218,11 @@ class ControlInterface(AdvInterface):
                 if server.get_member_tv(interaction.user):
                     raise errors.UserAlreadyOwnerError
                 await temp_voice.channel.send(
-                    f"<:info:1177314633124696165> {temp_voice.owner.mention} "
-                    f"Права на управления каналом были возвращены "
-                    f"создателю канала."
+                    temp_voice.owner.mention,
+                    embed=InfoEmbed(
+                        "Возвращены права на управление этим каналом",
+                        "Теперь создатель канала снова управляет им.",
+                    ),
                 )
                 await temp_voice.change_owner(interaction.user)
                 await interaction.response.send_message(
