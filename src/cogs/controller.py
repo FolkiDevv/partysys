@@ -1,34 +1,21 @@
+from __future__ import annotations
+
 import logging
 import os
 import traceback
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 
-from source.bot_class import PartySysBot
-from source.embeds import ErrorEmbed
-from source.errors import CustomExc
-
-# from dotenv import load_dotenv
-#
-# # --- LOAD ENV VARS ---#
-# dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-# if os.path.exists(dotenv_path):
-#     load_dotenv(dotenv_path)
-#
-#
-# # --- END LOAD ENV VARS --- #
+from src import services, ui
+from src.services import errors
 
 
-# def check_if_it_is_me(interaction: discord.Interaction) -> bool:
-#     return interaction.user.id == os.getenv("DEV_ID")
-
-
+# TODO: сделать единую обработку ошибок
 # noinspection PyUnresolvedReferences
-class Controller(commands.Cog):
-    def __init__(self, bot: PartySysBot):
-        self.bot = bot
+class Controller(services.BaseCog):
+    def __init__(self, bot):
+        super().__init__(bot)
 
     @staticmethod
     async def on_application_command_error(
@@ -36,18 +23,15 @@ class Controller(commands.Cog):
     ):
         error = getattr(error, "original", error)
         if isinstance(error, app_commands.CommandNotFound):
-            return  # отключаем вывод ошибки о ненайденной команде
+            return
 
-        embed = ErrorEmbed()
+        embed = ui.ErrorEmbed()
         try:
             if isinstance(error, app_commands.MissingPermissions):
                 embed.description = (
                     "У вас не хватает прав для использования "
                     "этой команды: {perms}!"
                 ).format(perms=", ".join(error.missing_permissions))
-                await interaction.response.send_message(
-                    embed=embed, ephemeral=True
-                )
             elif isinstance(error, app_commands.CommandOnCooldown):
                 embed.description = (
                     f"Этот функционал можно использовать только "
@@ -55,55 +39,18 @@ class Controller(commands.Cog):
                     f"{int(error.cooldown.per)} секунд."
                     f"Попробуйте через {round(error.retry_after)} секунд."
                 )
-                await interaction.response.send_message(
-                    embed=embed, ephemeral=True
-                )
             elif isinstance(error, app_commands.errors.CheckFailure):
                 embed.description = "Вы не можете использовать эту команду."
-                await interaction.response.send_message(
-                    embed=embed, ephemeral=True
-                )
-            elif isinstance(error, CustomExc):
-                embed.description = error.err_msg
-                await interaction.response.send_message(
-                    embed=embed, ephemeral=True
-                )
+            elif isinstance(error, errors.PartySysException):
+                embed.description = str(error)
             elif not isinstance(
                 error, app_commands.errors.CommandInvokeError
             ) or not isinstance(error, discord.errors.NotFound):
-                logging.error(traceback.format_exc())
-        except Exception:
-            logging.error(traceback.format_exc())
+                raise error
 
-    # @commands.Cog.listener()
-    # async def on_command_error(self, ctx, error):
-    #     if hasattr(ctx.command, "on_error"):
-    #         return
-    #
-    #     error = getattr(error, 'original', error)
-    #     if isinstance(error, commands.CommandNotFound):
-    #         return  # отключаем вывод ошибки о ненайденной команде
-    #
-    # try: if isinstance(error, commands.CommandOnCooldown): await ctx.reply(
-    # "<a:alert:945680944524845136> Команду \"{cmd}\" можно использовать
-    # только {rate} раз в {per} секунд. Попробуйте через" "{retry}"
-    # "секунд.".format( cmd=ctx.command.qualified_name,
-    # rate=error.cooldown.rate, per=error.cooldown.per,
-    # retry=error.retry_after), delete_after=15) elif isinstance(error,
-    # commands.MissingPermissions): await ctx.reply(
-    # "<a:alert:945680944524845136> У вас не хватает прав для использования
-    # этой команды: {perms}!".format( perms=", ".join(
-    # error.missing_permissions)), delete_after=15) elif isinstance(error,
-    # commands.BotMissingPermissions): await ctx.reply(
-    # "<a:alert:945680944524845136> У бота не хватает разрешений для
-    # полноценной работы: {perms}!".format( perms=", ".join(
-    # error.missing_permissions)), delete_after=15) else: if ctx.command is
-    # not None: await ctx.reply( "<a:alert:945680944524845136> Произошла
-    # неизвестная ошибка при выполнении команды `{cmd}`: {error}".format(
-    # cmd=ctx.command.name, error=str(error)), delete_after=15) else: await
-    # ctx.reply("<a:alert:945680944524845136> Произошла неизвестная ошибка
-    # при выполнении команды: {error}".format( error=str(error)),
-    # delete_after=15) except Exception: return
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as e:
+            logging.error(e)
 
     @app_commands.command(
         name="ext_reload",
@@ -136,7 +83,7 @@ class Controller(commands.Cog):
                 )
             elif isinstance(e, discord.ext.commands.ExtensionFailed):
                 await interaction.response.send_message(
-                    f"{cog} Ошибка при старте: {str(e)}", ephemeral=True
+                    f"{cog} Ошибка при старте: {e!s}", ephemeral=True
                 )
             else:
                 logging.error(traceback.format_exc())
@@ -170,7 +117,7 @@ class Controller(commands.Cog):
                 )
             elif isinstance(e, discord.ext.commands.ExtensionFailed):
                 await interaction.response.send_message(
-                    f"{cog} Ошибка при старте: {str(e)}", ephemeral=True
+                    f"{cog} Ошибка при старте: {e!s}", ephemeral=True
                 )
             else:
                 logging.error(traceback.format_exc())

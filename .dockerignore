@@ -3,6 +3,7 @@ bot_partysys
 *.pyc
 logs
 .venv
+tests
 *.env
 **/__pycache__/
 **/.env

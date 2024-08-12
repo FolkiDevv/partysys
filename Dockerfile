@@ -2,19 +2,28 @@
 # First stage: builder
 FROM python:3.12-slim-bullseye as builder
 
-# Install UV
-RUN pip install uv
+ENV PIP_NO_CACHE_DIR=1 \
+  PIP_DISABLE_PIP_VERSION_CHECK=1 \
+  PIP_DEFAULT_TIMEOUT=100 \
+  PIP_ROOT_USER_ACTION=ignore
+
+RUN apt-get update && apt-get install -y build-essential \
+    # Install Poetry
+    && pip install poetry \
+    # Cleaning cache:
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
 WORKDIR /app
 
 # Copy only requirements to cache them in docker layer
-COPY README.md pyproject.toml /app/
+COPY poetry.lock pyproject.toml /app/
 
-# Install dependencies
-RUN uv pip compile pyproject.toml -o requirements.txt && \
-    uv venv && \
-    uv pip install -r requirements.txt
+# Configure Poetry and Install dependencies
+RUN poetry config virtualenvs.create true &&  \
+    poetry config virtualenvs.in-project true &&  \
+    poetry install --only main --no-interaction --no-ansi
 
 # Copy the rest of the code
 COPY . /app
@@ -40,11 +49,6 @@ ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
   PYTHONHASHSEED=random \
   PYTHONDONTWRITEBYTECODE=1 \
-  PIP_NO_CACHE_DIR=1 \
-  PIP_DISABLE_PIP_VERSION_CHECK=1 \
-  PIP_DEFAULT_TIMEOUT=100 \
-  PIP_ROOT_USER_ACTION=ignore \
   PATH="/app/.venv/bin:$PATH"
 
-# Set the entrypoint
-ENTRYPOINT ["python", "-m", "main"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

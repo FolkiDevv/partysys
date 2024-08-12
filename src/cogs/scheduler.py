@@ -1,47 +1,38 @@
+from __future__ import annotations
+
 from datetime import datetime
 
-from discord.ext import commands, tasks
+from discord.ext import tasks
+from loguru import logger
 
-from source.bot_class import PartySysBot
-
-# import os
-# # --- LOAD ENV VARS ---#
-# dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-# if os.path.exists(dotenv_path):
-#     load_dotenv(dotenv_path)
-#
-#
-# # --- END LOAD ENV VARS --- #
+from src import services
 
 
-# def check_if_it_is_me(interaction: discord.Interaction) -> bool:
-#     return interaction.user.id == os.getenv("DEV_ID")
-
-
-class Scheduler(commands.Cog):
-    def __init__(self, bot: PartySysBot):
-        self.bot = bot
+class Scheduler(services.BaseCog):
+    def __init__(self, bot):
+        super().__init__(bot)
 
     @tasks.loop(minutes=1.0)
     async def adv_deleter(self):
         for server in self.bot.servers.copy().values():
-            for temp_voice in server.all_channels().copy().values():
+            for temp_voice in server.all_channels().values():
                 if (
                     temp_voice.adv
                     and temp_voice.adv.delete_after
                     and datetime.now() >= temp_voice.adv.delete_after
                 ):
-                    await temp_voice.delete_adv()
+                    await temp_voice.adv.delete()
 
     @tasks.loop(minutes=1.0)
     async def reminder_sender(self):
-        for server in self.bot.servers.values():
-            for temp_voice in list(server.all_channels().copy().values()):
+        for server in list(self.bot.servers.values()):
+            for temp_voice in list(server.all_channels().values()):
                 if (
                     temp_voice.reminder
                     and datetime.now() >= temp_voice.reminder
                 ):
-                    await temp_voice.send_reminder()
+                    logger.debug(f"Sending reminder to {temp_voice.channel.id}")
+                    await temp_voice.send_reminder(server.adv_channel)
 
     @reminder_sender.before_loop
     async def before_remind_sender(self):
@@ -51,14 +42,7 @@ class Scheduler(commands.Cog):
     async def before_adv_deleter(self):
         await self.bot.wait_until_ready()
 
-    # @commands.Cog.listener()
-    # async def on_ready(self):
-    #     if not self.adv_deleter.is_running():
-    #         self.adv_deleter.start()
-    #     if not self.reminder_sender.is_running():
-    #         self.reminder_sender.start()
-
-    def cog_load(self) -> None:
+    def cog_load(self):
         if not self.adv_deleter.is_running():
             self.adv_deleter.start()
         if not self.reminder_sender.is_running():
@@ -71,5 +55,5 @@ class Scheduler(commands.Cog):
             self.reminder_sender.cancel()
 
 
-async def setup(bot: PartySysBot):
+async def setup(bot) -> None:
     await bot.add_cog(Scheduler(bot))

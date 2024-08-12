@@ -5,17 +5,39 @@ import logging
 import discord
 from discord import Interaction
 
-from source.embeds import ErrorEmbed
-from source.errors import CustomExc
+from src import utils
+from src.services import errors
+
+from .embeds import ErrorEmbed
 
 
 class BaseView(discord.ui.View):
+    def __init__(self, bot: utils.BotABC, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bot = bot
+        self.server: utils.ServerABC | None = None
+        self.temp_voice: utils.TempVoiceABC | None = None
+
+    async def interaction_check(self, interaction: Interaction) -> bool:
+        self.server = await self.bot.server(interaction.guild_id)
+        if not self.server:
+            raise errors.BotNotConfiguredError
+
+        self.temp_voice = self.server.get_member_tv(
+            interaction.user,
+            interaction.channel_id,
+        )
+        if not self.temp_voice:
+            raise errors.UserNoTempChannelsError
+
+        return True
+
     async def on_error(
         self,
         interaction: discord.Interaction,
         error: Exception,
         item: discord.ui.Item,
-    ) -> None:
+    ):
         error = getattr(error, "original", error)
 
         embed = ErrorEmbed()
@@ -29,8 +51,8 @@ class BaseView(discord.ui.View):
                     embed=embed,
                     delete_after=10.0,
                 )
-            elif isinstance(error, CustomExc):
-                embed.description = error.err_msg
+            elif isinstance(error, errors.PartySysException):
+                embed.description = str(error)
                 await interaction.response.send_message(
                     ephemeral=True, embed=embed
                 )
@@ -43,9 +65,7 @@ class BaseView(discord.ui.View):
 
 
 class BaseModal(discord.ui.Modal):
-    async def on_error(
-        self, interaction: Interaction, error: Exception, /
-    ) -> None:
+    async def on_error(self, interaction: Interaction, error: Exception, /):
         error = getattr(error, "original", error)
 
         embed = ErrorEmbed()
@@ -55,14 +75,12 @@ class BaseModal(discord.ui.Modal):
                     "Не можем найти исходное сообщение с интерфейсом."
                 )
                 await interaction.channel.send(embed=embed, delete_after=10.0)
-            elif isinstance(error, CustomExc):
-                embed.description = error.err_msg
+            elif isinstance(error, errors.PartySysException):
+                embed.description = str(error)
                 await interaction.response.send_message(
                     ephemeral=True, embed=embed
                 )
             else:
-                import traceback
-
-                logging.error(traceback.format_exc())
+                logging.error(error)
         finally:
             pass

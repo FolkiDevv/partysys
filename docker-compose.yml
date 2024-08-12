@@ -1,12 +1,13 @@
 services:
   bot:
     image: ghcr.io/folkidevv/partysys:master
-#    command: sh -c "sleep 10s ; python main.py"
     environment:
       - DEBUG=${DEBUG}
+      - COGS=${COGS}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - DEV_SERVER_ID=${DEV_SERVER_ID}
       - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -30,8 +31,6 @@ services:
 #      timeout: 5s
 #      retries: 3
 #      start_period: 30s
-    volumes:
-      - /usr/local/src/partysys/bot_partysys:/app/logs
     depends_on:
       - db
 
@@ -59,4 +58,4 @@ services:
         max_attempts: 3
         window: 120s
     volumes:
-      - /usr/local/src/partysys/db_partysys:/var/lib/mysql
+      - /usr/local/src/partysys:/var/lib/mysql
