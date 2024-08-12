@@ -19,12 +19,11 @@ class Controller(services.BaseCog):
 
     @staticmethod
     async def on_application_command_error(
-            interaction: discord.Interaction,
-            error: app_commands.AppCommandError
+        interaction: discord.Interaction, error: app_commands.AppCommandError
     ):
         error = getattr(error, "original", error)
         if isinstance(error, app_commands.CommandNotFound):
-            return  # отключаем вывод ошибки о ненайденной команде
+            return
 
         embed = ui.ErrorEmbed()
         try:
@@ -45,7 +44,7 @@ class Controller(services.BaseCog):
             elif isinstance(error, errors.PartySysException):
                 embed.description = str(error)
             elif not isinstance(
-                    error, app_commands.errors.CommandInvokeError
+                error, app_commands.errors.CommandInvokeError
             ) or not isinstance(error, discord.errors.NotFound):
                 raise error
 
@@ -84,7 +83,7 @@ class Controller(services.BaseCog):
                 )
             elif isinstance(e, discord.ext.commands.ExtensionFailed):
                 await interaction.response.send_message(
-                    f"{cog} Ошибка при старте: {str(e)}", ephemeral=True
+                    f"{cog} Ошибка при старте: {e!s}", ephemeral=True
                 )
             else:
                 logging.error(traceback.format_exc())
@@ -118,7 +117,7 @@ class Controller(services.BaseCog):
                 )
             elif isinstance(e, discord.ext.commands.ExtensionFailed):
                 await interaction.response.send_message(
-                    f"{cog} Ошибка при старте: {str(e)}", ephemeral=True
+                    f"{cog} Ошибка при старте: {e!s}", ephemeral=True
                 )
             else:
                 logging.error(traceback.format_exc())
