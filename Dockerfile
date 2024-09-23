@@ -33,13 +33,13 @@ FROM python:3.12-slim-bullseye as runtime
 
 # Create app user and group
 RUN addgroup --gid 1001 --system app && \
-    adduser --no-create-home --shell /bin/false --disabled-password --uid 1001 --system --group app
+    adduser --no-create-home --shell /bin/bash --disabled-password --uid 1001 --system --group app
 
 # Set work directory
 WORKDIR /app
 
 # Copy installed dependencies from the builder image
-COPY --from=builder /app /app
+COPY --from=builder --chown=app /app /app
 
 # Switch to the app user
 USER app
@@ -51,4 +51,5 @@ ENV PYTHONFAULTHANDLER=1 \
   PYTHONDONTWRITEBYTECODE=1 \
   PATH="/app/.venv/bin:$PATH"
 
+RUN chmod +x docker-entrypoint.sh
 ENTRYPOINT ["./docker-entrypoint.sh"]
