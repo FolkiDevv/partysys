@@ -14,8 +14,8 @@ class Scheduler(services.BaseCog):
 
     @tasks.loop(minutes=1.0)
     async def adv_deleter(self):
-        for server in self.bot.servers.copy().values():
-            for temp_voice in server.all_channels().values():
+        for server in list(self.bot.servers.values()):
+            for temp_voice in list(server.all_tv().values()):
                 if (
                     temp_voice.adv
                     and temp_voice.adv.delete_after
@@ -26,7 +26,7 @@ class Scheduler(services.BaseCog):
     @tasks.loop(minutes=1.0)
     async def reminder_sender(self):
         for server in list(self.bot.servers.values()):
-            for temp_voice in list(server.all_channels().values()):
+            for temp_voice in list(server.all_tv().values()):
                 if (
                     temp_voice.reminder
                     and datetime.now() >= temp_voice.reminder

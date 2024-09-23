@@ -25,7 +25,7 @@ class Voice(services.BaseCog):
         after: discord.VoiceState,
     ) -> None:
         if after.channel == before.channel:
-            return None
+            return
 
         logger.debug("on_voice_state_update event triggered")
 
@@ -36,26 +36,32 @@ class Voice(services.BaseCog):
         ):
             await after_server.update_settings()
             if after_server.is_creator_channel(after.channel.id):
-                logger.debug("User joined to creator channel")
+                logger.info(
+                    f"{member.id} joined to C{after.channel.id} channel"
+                )
                 # Check if user join in Creator channel
-                if temp_voice := await after_server.create_channel(
+                if temp_voice := await after_server.create_tv(
                     member, after.channel.id
                 ):
                     logger.info(
-                        f"Temp voice {temp_voice.id} created and user "
+                        f"TV{temp_voice.id} created and user "
                         f"{member.id} moved into."
                     )
-            elif after_server.is_temp_channel(after.channel.id) and (
-                after_temp_voice := after_server.channel(after.channel.id)
+            elif after_server.is_tv_channel(after.channel.id) and (
+                after_temp_voice := after_server.tv(after.channel.id)
             ):
-                logger.debug("User joined to temp channel")
+                logger.info(
+                    f"{member.id} joined to TV{after.channel.id} channel"
+                )
+
+                after_temp_voice.updated()
+                await after_temp_voice.adv.update()
+
                 metrics.incr(
                     "temp_channel_user_join",
                     1,
                     tags={"server": after_server.guild.id},
                 )
-                after_temp_voice.updated()
-                await after_temp_voice.adv.update()
 
         if (
             before.channel
@@ -65,17 +71,19 @@ class Voice(services.BaseCog):
             )
         ):
             await before_server.update_settings()
-            if before_server.is_temp_channel(before.channel.id):
+            if before_server.is_tv_channel(before.channel.id):
                 # Check if user leave Temp channel
                 if not len(before.channel.members):
-                    await before_server.del_channel(before.channel.id)
                     logger.info(
-                        f"Temp voice {before.channel.id} deleted, because "
-                        f"its empty."
+                        f"TV{before.channel.id} deleted, because its empty."
                     )
-                elif before_temp_voice := before_server.channel(
-                    before.channel.id
-                ):
+
+                    await before_server.del_tv(before.channel.id)
+                elif before_temp_voice := before_server.tv(before.channel.id):
+                    logger.info(
+                        f"{member.id} leaved from TV{before.channel.id} channel"
+                    )
+
                     before_temp_voice.updated()
                     await before_temp_voice.adv.update()
 
@@ -83,15 +91,9 @@ class Voice(services.BaseCog):
     async def on_guild_channel_update(
         self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel
     ) -> None:
-        """
-        Check if updated channel is temp channel and update adv (if existed)
-        :param before:
-        :param after:
-        :return:
-        """
         if after.type == discord.ChannelType.voice and (
             (server := await self.bot.server(after.guild.id))
-            and (temp_voice := server.channel(before.id))
+            and (temp_voice := server.tv(before.id))
         ):
             temp_voice.updated()
             if temp_voice.adv:
@@ -104,18 +106,18 @@ class Voice(services.BaseCog):
                 if (channel := self.bot.get_channel(raw_channel.dis_id)) and (
                     server := await self.bot.server(channel.guild.id)
                 ):
-                    temp_channel = await server.restore_channel(
+                    temp_channel = await server.restore_tv(
                         channel,
                         raw_channel.dis_owner_id,
                         raw_channel.dis_creator_id,
                         raw_channel.dis_adv_msg_id,
                     )
                     if not temp_channel.channel.members:
-                        await server.del_channel(channel.id)
-                    logger.info(f"Channel {channel.id} restored")
+                        await server.del_tv(channel.id)
+                    logger.success(f"TV{channel.id} channel restored")
                 await asyncio.sleep(0.1)
             self.channels_restored = True
-            logger.info("Channels restore done")
+            logger.info("Restored all temp channels")
 
 
 async def setup(bot):

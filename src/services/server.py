@@ -40,15 +40,15 @@ def to_roman(number):
 
 class Server(utils.ServerABC):
     __slots__ = (
+        "_creator_channels",
+        "_last_data_update",
+        "_random_names",
+        "_random_names_index",
+        "_temp_channels",
+        "adv_channel",
         "bot",
         "guild",
         "id",
-        "adv_channel",
-        "_creator_channels",
-        "_temp_channels",
-        "_random_names",
-        "_random_names_index",
-        "_last_data_update",
     )
 
     def _get_random_squad_name(self) -> str:
@@ -82,14 +82,14 @@ class Server(utils.ServerABC):
         ):
             await self._update_settings(self.guild.id)
 
-    async def del_channel(self, channel_id):
+    async def del_tv(self, channel_id):
         try:
             await self._temp_channels[channel_id].delete()
         finally:
             if channel_id in self._temp_channels:
                 del self._temp_channels[channel_id]
 
-    async def create_channel(self, member, creator_channel_id):
+    async def create_tv(self, member, creator_channel_id):
         if creator_channel_id not in self._creator_channels:
             return None
 
@@ -135,7 +135,7 @@ class Server(utils.ServerABC):
     def is_creator_channel(self, channel_id):
         return channel_id in self._creator_channels
 
-    def is_temp_channel(self, channel_id):
+    def is_tv_channel(self, channel_id):
         return channel_id in self._temp_channels
 
     def get_member_tv(self, member, interaction_channel_id=None):
@@ -152,11 +152,6 @@ class Server(utils.ServerABC):
         return False
 
     def get_member_transferred_tv(self, member):
-        """
-        Try to find user temp voice when user transfer his owner
-        :param member:
-        :return:
-        """
         for temp_channel in self._temp_channels.values():
             if temp_channel.creator == member:
                 return temp_channel
@@ -165,13 +160,13 @@ class Server(utils.ServerABC):
     def get_creator_channels_ids(self):
         return self._creator_channels.keys()
 
-    def channel(self, channel_id):
+    def tv(self, channel_id):
         return self._temp_channels.get(channel_id)
 
-    def all_channels(self):
+    def all_tv(self):
         return self._temp_channels
 
-    async def restore_channel(
+    async def restore_tv(
         self,
         channel,
         owner_id,

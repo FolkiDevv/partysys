@@ -14,14 +14,14 @@ from src.services import errors
 
 class TempVoice(utils.TempVoiceABC):
     __slots__ = (
+        "_invite_url",
+        "adv",
         "channel",
-        "server",
         "creator",
         "owner",
-        "adv",
-        "reminder",
         "privacy",
-        "_invite_url",
+        "reminder",
+        "server",
     )
 
     @classmethod
@@ -128,7 +128,14 @@ class TempVoice(utils.TempVoiceABC):
             self.reminder = None
 
     async def send_reminder(self, adv_channel):
-        if self.privacy == utils.Privacy.PUBLIC and not self.adv:
+        if (
+            self.privacy == utils.Privacy.PUBLIC
+            and not self.adv
+            and (
+                not self.channel.user_limit
+                or self.channel.user_limit > len(self.channel.members)
+            )
+        ):
             await self.adv.send("")
             await self.channel.send(
                 embed=ui.ReminderEmbed(),
@@ -256,6 +263,6 @@ class TempVoice(utils.TempVoiceABC):
             await self.channel.delete(
                 reason="Temp channel is empty or deleted by owner."
             )
-            await self.adv.delete()
 
-            await TempChannels.filter(dis_id=self.channel.id).delete()
+        await self.adv.delete()
+        await TempChannels.filter(dis_id=self.channel.id).delete()

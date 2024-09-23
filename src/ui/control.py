@@ -33,7 +33,7 @@ class ControlInterface(AdvInterface):
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.channel_id != (
             await self.check(interaction)
-        ).channel.id and (await self.bot.server(interaction.guild_id)).channel(
+        ).channel.id and (await self.bot.server(interaction.guild_id)).tv(
             interaction.channel_id
         ):
             raise errors.UserUseAlienControlInterfaceError
@@ -269,6 +269,6 @@ class ControlInterface(AdvInterface):
         temp_voice: utils.TempVoiceABC,
         *_,
     ):
-        await (await self.bot.server(interaction.guild_id)).del_channel(
+        await (await self.bot.server(interaction.guild_id)).del_tv(
             temp_voice.channel.id
         )

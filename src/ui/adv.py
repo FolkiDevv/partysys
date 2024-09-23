@@ -18,10 +18,10 @@ from .views import JoinInterface
 
 class Adv:
     __slots__ = (
-        "temp_voice",
         "_message",
-        "text",
         "delete_after",
+        "temp_voice",
+        "text",
     )
 
     def __init__(
@@ -100,12 +100,9 @@ class Adv:
         return self._message
 
     async def delete(self) -> bool:
-        if not self:
-            return False
-
         try:
             await self._message.delete()
-        except discord.NotFound:
+        except (discord.NotFound, AttributeError):
             pass
         except discord.DiscordServerError as e:
             if e.code == 0:
@@ -114,12 +111,12 @@ class Adv:
                     await msg.delete()
             else:
                 raise e
+        finally:
+            await TempChannels.filter(dis_id=self.temp_voice.channel.id).update(
+                dis_adv_msg_id=None
+            )
 
-        await TempChannels.filter(dis_id=self.temp_voice.channel.id).update(
-            dis_adv_msg_id=None
-        )
-
-        self._message, self.delete_after = None, None
+            self._message, self.delete_after = None, None
         return True
 
 
@@ -276,10 +273,8 @@ class AdvInterface(BaseView):
     @staticmethod
     async def handle_no_adv(temp_voice, interaction):
         if temp_voice.privacy == utils.Privacy.PUBLIC:
-            if (
-                not temp_voice.channel.user_limit
-                or temp_voice.channel.user_limit
-                > len(temp_voice.channel.members)
+            if not temp_voice.tv.user_limit or temp_voice.tv.user_limit > len(
+                temp_voice.tv.members
             ):
                 await interaction.response.send_modal(AdvModal(temp_voice))
             else:

@@ -85,7 +85,7 @@ async def test_create_channel(mocker: MockFixture, server):
         ),
     )
 
-    res = await server.create_channel(mocker.Mock(display_name="test"), 1)
+    res = await server.create_tv(mocker.Mock(display_name="test"), 1)
 
     assert isinstance(res, discord.VoiceChannel)
     assert res.id == 1
@@ -102,7 +102,7 @@ async def test_delete_channel(mocker: MockFixture, server):
 
     mocker.patch("src.services.TempVoice.delete")
 
-    await server.del_channel(1)
+    await server.del_tv(1)
 
     assert len(server._temp_channels) == 0
 
@@ -157,8 +157,8 @@ async def test_channel(mocker: MockFixture, server):
     channel = mocker.Mock(id=1)
     server._temp_channels = {1: channel}
 
-    assert server.channel(1) == channel
-    assert server.channel(2) is None
+    assert server.tv(1) == channel
+    assert server.tv(2) is None
 
 
 @pytest.mark.asyncio
@@ -172,13 +172,13 @@ async def test_restore_channel_without_adv(mocker: MockFixture, server):
     mock_adv_update = mocker.patch("src.ui.adv.Adv.update")
     channel = mocker.Mock(id=1)
 
-    res = await server.restore_channel(channel, 1, 1, 0)
+    res = await server.restore_tv(channel, 1, 1, 0)
 
     mock_fetch_message.assert_not_called()
     mock_adv_update.assert_not_called()
     assert isinstance(res, TempVoiceABC)
     assert res.channel.id == channel.id
-    assert server.channel(channel.id) == res
+    assert server.tv(channel.id) == res
 
 
 @pytest.mark.asyncio
@@ -190,9 +190,9 @@ async def test_restore_channel_with_adv(mocker: MockFixture, server):
     mock_adv_update = mocker.patch("src.ui.adv.Adv.update")
     channel = mocker.Mock(id=1)
 
-    res = await server.restore_channel(channel, 1, 1, 11)
+    res = await server.restore_tv(channel, 1, 1, 11)
 
     mock_adv_update.assert_called_once_with(res)
     assert isinstance(res, TempVoiceABC)
     assert res.channel.id == channel.id
-    assert server.channel(channel.id) == res
+    assert server.tv(channel.id) == res
